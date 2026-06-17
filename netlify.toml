@@ -1,0 +1,13 @@
+# Netlify build: deploy the Convex backend, then build the frontend.
+# `npx convex deploy` reads CONVEX_DEPLOY_KEY (set in Netlify env vars), pushes
+# functions/schema to your production Convex deployment, and injects the matching
+# VITE_CONVEX_URL into the `npm run build` it runs via --cmd.
+[build]
+  command = "npx convex deploy --cmd 'npm run build'"
+  publish = "dist"
+
+# SPA fallback for client-side routing (react-router) + the PWA shell.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
