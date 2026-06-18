@@ -8,7 +8,7 @@ import type { Id } from "./_generated/dataModel";
 const PAGE_W = 595.28; // A4 in points
 const PAGE_H = 841.89;
 const MARGIN = 50;
-const RESSCOTT_PURPLE = rgb(0.42, 0.16, 0.6);
+const RESSCOTT_GREEN = rgb(0.353, 0.655, 0.18);
 const INK = rgb(0.05, 0.04, 0.03);
 const GREY = rgb(0.45, 0.45, 0.45);
 
@@ -84,19 +84,19 @@ export const convert = action({
     const heading = (label: string) => {
       y -= 8;
       ensure(24);
-      page.drawText(label, { x: MARGIN, y: y - 13, size: 13, font: bold, color: RESSCOTT_PURPLE });
+      page.drawText(label, { x: MARGIN, y: y - 13, size: 13, font: bold, color: RESSCOTT_GREEN });
       y -= 18;
       page.drawLine({
         start: { x: MARGIN, y },
         end: { x: PAGE_W - MARGIN, y },
         thickness: 1,
-        color: RESSCOTT_PURPLE,
+        color: RESSCOTT_GREEN,
       });
       y -= 10;
     };
 
     // ---- Letterhead ----
-    page.drawText("RESSCOTT LIMITED", { x: MARGIN, y: y - 22, size: 22, font: bold, color: RESSCOTT_PURPLE });
+    page.drawText("RESSCOTT LIMITED", { x: MARGIN, y: y - 22, size: 22, font: bold, color: RESSCOTT_GREEN });
     y -= 30;
     page.drawText("INSPECTION REPORT", { x: MARGIN, y: y - 12, size: 12, font: bold, color: INK });
     y -= 22;
@@ -109,7 +109,7 @@ export const convert = action({
       start: { x: MARGIN, y },
       end: { x: PAGE_W - MARGIN, y },
       thickness: 1.5,
-      color: RESSCOTT_PURPLE,
+      color: RESSCOTT_GREEN,
     });
     y -= 14;
 

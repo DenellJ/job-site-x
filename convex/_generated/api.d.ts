@@ -19,6 +19,7 @@ import type * as http from "../http.js";
 import type * as notifications from "../notifications.js";
 import type * as reportData from "../reportData.js";
 import type * as reports from "../reports.js";
+import type * as reset from "../reset.js";
 import type * as storage from "../storage.js";
 import type * as submissions from "../submissions.js";
 import type * as users from "../users.js";
@@ -42,6 +43,7 @@ declare const fullApi: ApiFromModules<{
   notifications: typeof notifications;
   reportData: typeof reportData;
   reports: typeof reports;
+  reset: typeof reset;
   storage: typeof storage;
   submissions: typeof submissions;
   users: typeof users;

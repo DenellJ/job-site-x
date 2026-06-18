@@ -152,7 +152,7 @@ function AccountRow({
     user.status === "approved"
       ? "bg-green-100 text-green-900 border-green-700"
       : user.status === "pending"
-      ? "bg-hi text-ink border-ink"
+      ? "bg-amber-100 text-amber-900 border-amber-300"
       : "bg-red-100 text-red-900 border-red-700";
 
   return (

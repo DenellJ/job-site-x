@@ -6,47 +6,47 @@ html, body, #root { height: 100%; }
 body {
   -webkit-font-smoothing: antialiased;
   background: #fafaf9;
-  color: #0c0a09;
+  color: #1c1917;
 }
 
 @layer components {
   .btn {
-    @apply inline-flex items-center justify-center min-h-[52px] px-5 py-3 rounded-md text-base font-black uppercase tracking-wide transition active:translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed border-2 border-ink;
+    @apply inline-flex items-center justify-center min-h-[48px] px-5 py-3 rounded-lg text-base font-semibold transition active:translate-y-px disabled:opacity-50 disabled:cursor-not-allowed;
   }
-  .btn-primary { @apply btn bg-ink text-concrete hover:bg-steel; }
-  .btn-accent  { @apply btn bg-hi text-ink hover:bg-hi2 shadow-chunky; }
-  .btn-ok      { @apply btn bg-ok text-white border-ok hover:opacity-90; }
-  .btn-err     { @apply btn bg-err text-white border-err hover:opacity-90; }
-  .btn-ghost   { @apply btn bg-white text-ink hover:bg-stone-100; }
+  .btn-primary { @apply btn bg-ink text-white hover:bg-steel; }
+  .btn-accent  { @apply btn bg-hi text-white hover:bg-hi2 shadow-soft; }
+  .btn-ok      { @apply btn bg-ok text-white hover:opacity-90; }
+  .btn-err     { @apply btn bg-err text-white hover:opacity-90; }
+  .btn-ghost   { @apply btn bg-white text-ink border border-stone-300 hover:bg-stone-50; }
 
   .card {
-    @apply bg-white border-2 border-stone-300 rounded-md p-5 shadow-sm;
+    @apply bg-white border border-stone-200 rounded-xl p-5 shadow-soft;
   }
 
   .card-job {
-    @apply bg-white border-2 border-stone-300 rounded-md p-5 shadow-sm
-           border-l-[6px] border-l-hi hover:border-l-hi2 transition;
+    @apply bg-white border border-stone-200 rounded-xl p-5 shadow-soft
+           border-l-4 border-l-hi hover:border-l-hi2 hover:shadow-md transition;
   }
 
   .input {
-    @apply block w-full min-h-[52px] px-4 py-3 border-2 border-stone-300 rounded-md text-base bg-white
-           focus:outline-none focus:border-ink;
+    @apply block w-full min-h-[48px] px-4 py-3 border border-stone-300 rounded-lg text-base bg-white
+           focus:outline-none focus:border-hi focus:ring-2 focus:ring-hi/30;
   }
 
   .label {
-    @apply block text-xs font-black uppercase tracking-widest text-rebar mb-1;
+    @apply block text-xs font-semibold uppercase tracking-wide text-rebar mb-1;
   }
 
   .pill {
-    @apply inline-flex items-center px-2.5 py-1 rounded-sm text-[10px] font-black uppercase tracking-widest border-2;
+    @apply inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border;
   }
 
   .section-title {
-    @apply text-xs font-black uppercase tracking-[0.2em] text-rebar mb-2;
+    @apply text-xs font-bold uppercase tracking-wide text-rebar mb-2;
   }
 
   .h-stripe {
-    background-image: repeating-linear-gradient(45deg, #facc15 0 14px, #0c0a09 14px 28px);
-    height: 8px;
+    @apply bg-brand-rule;
+    height: 3px;
   }
 }

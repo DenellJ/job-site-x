@@ -79,15 +79,5 @@ export default function Register() {
 }
 
 function Brand() {
-  return (
-    <div className="flex items-center gap-3">
-      <span className="inline-flex items-center justify-center w-12 h-12 bg-hi text-ink font-black text-xl rounded-sm">
-        JX
-      </span>
-      <div>
-        <div className="font-black text-xl uppercase tracking-tight">Job Site X</div>
-        <div className="text-[10px] uppercase tracking-widest text-rebar">Field Ops · Approvals</div>
-      </div>
-    </div>
-  );
+  return <img src="/resscott-logo.png" alt="Resscott Limited" className="h-14 w-auto max-w-full" />;
 }

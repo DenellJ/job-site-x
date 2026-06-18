@@ -11,3 +11,11 @@ dist-ssr
 
 # Convex local (anonymous) deployment data
 .convex
+
+# Local agent / Convex AI tooling (not application code)
+.agents/
+.claude/
+AGENTS.md
+CLAUDE.md
+skills-lock.json
+convex/_generated/ai/

@@ -1,1 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="#0f172a"/><path d="M14 46V22l8-6 10 6 10-6 8 6v24H14z" fill="none" stroke="#fff" stroke-width="3" stroke-linejoin="round"/><rect x="28" y="32" width="8" height="14" fill="#fff"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Resscott">
+  <defs>
+    <linearGradient id="fav-leaf" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7fc24a"/>
+      <stop offset="1" stop-color="#47861f"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="#1c1917"/>
+  <g transform="translate(18 12) rotate(-18 14 20)">
+    <path d="M14 1 C 25 9, 25 31, 14 39 C 3 31, 3 9, 14 1 Z" fill="url(#fav-leaf)"/>
+    <path d="M14 5 C 12.5 16, 12.5 26, 14 35" fill="none" stroke="#ffffff" stroke-opacity="0.75" stroke-width="2" stroke-linecap="round"/>
+  </g>
+</svg>

@@ -13,7 +13,7 @@ export default function PendingApproval({
       <div className="card max-w-md w-full space-y-4 text-center">
         <span
           className={`inline-flex items-center justify-center w-14 h-14 rounded-sm font-black text-2xl mx-auto ${
-            declined ? "bg-err text-white" : "bg-hi text-ink"
+            declined ? "bg-err text-white" : "bg-amber-100 text-amber-900"
           }`}
         >
           {declined ? "✕" : "⏳"}

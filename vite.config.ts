@@ -9,11 +9,11 @@ export default defineConfig({
       registerType: "autoUpdate",
       includeAssets: ["favicon.svg", "icon-192.png", "icon-512.png"],
       manifest: {
-        name: "Job Site X",
-        short_name: "Job Site X",
-        description: "Job-site task & approval workflow",
-        theme_color: "#0c0a09",
-        background_color: "#fafaf9",
+        name: "Resscott — Job-Site Forms",
+        short_name: "Resscott",
+        description: "Resscott job-site digital forms & reporting",
+        theme_color: "#1c1917",
+        background_color: "#ffffff",
         display: "standalone",
         start_url: "/",
         icons: [

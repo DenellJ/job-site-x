@@ -2,7 +2,7 @@ import type { SubmissionStatus } from "../lib/types";
 
 const submissionClass: Record<SubmissionStatus, string> = {
   draft: "bg-stone-100 text-rebar border-stone-300",
-  submitted: "bg-hi text-ink border-ink",
+  submitted: "bg-amber-100 text-amber-900 border-amber-300",
   approved: "bg-green-100 text-green-900 border-green-700",
   rejected: "bg-red-100 text-red-900 border-red-700",
 };

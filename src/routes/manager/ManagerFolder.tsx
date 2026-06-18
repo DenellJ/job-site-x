@@ -39,7 +39,7 @@ export default function ManagerFolder() {
                       ✓ Report v{r.reportVersion}
                     </span>
                   ) : (
-                    <span className="pill bg-hi text-ink border-ink">Needs converting</span>
+                    <span className="pill bg-amber-100 text-amber-900 border-amber-300">Needs converting</span>
                   )}
                 </div>
                 <div className="text-sm text-rebar mt-0.5">

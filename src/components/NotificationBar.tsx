@@ -14,7 +14,7 @@ export function NotificationBar({
       {notices.slice(0, 3).map((n) => (
         <div
           key={n.id}
-          className="bg-ink text-concrete border-2 border-hi rounded-md shadow-chunky p-4 flex items-start gap-3"
+          className="bg-ink text-concrete border border-hi rounded-lg shadow-soft p-4 flex items-start gap-3"
         >
           <span className="inline-flex w-7 h-7 bg-hi text-ink font-black items-center justify-center rounded-sm shrink-0">
             !

@@ -29,17 +29,7 @@ export default function Login() {
   return (
     <div className="min-h-full flex items-center justify-center p-4 bg-stone-100">
       <form onSubmit={submit} className="card max-w-md w-full space-y-4">
-        <div className="flex items-center gap-3">
-          <span className="inline-flex items-center justify-center w-12 h-12 bg-hi text-ink font-black text-xl rounded-sm">
-            JX
-          </span>
-          <div>
-            <div className="font-black text-xl uppercase tracking-tight">Job Site X</div>
-            <div className="text-[10px] uppercase tracking-widest text-rebar">
-              Field Ops · Approvals
-            </div>
-          </div>
-        </div>
+        <img src="/resscott-logo.png" alt="Resscott Limited" className="h-14 w-auto max-w-full" />
         <h1 className="text-2xl font-black uppercase">Sign In</h1>
         <div>
           <label className="label">Email</label>

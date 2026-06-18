@@ -4,13 +4,14 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Construction palette
-        ink: "#0c0a09",       // near-black (stone-950)
-        steel: "#1c1917",     // stone-900
-        concrete: "#fafaf9",  // stone-50
-        rebar: "#78716c",     // stone-500
-        hi: "#facc15",        // safety yellow (yellow-400)
-        hi2: "#f59e0b",       // amber-500 for hover
+        // Resscott — charcoal + renewable leaf-green
+        ink: "#1c1917",        // charcoal (logo wordmark)
+        steel: "#292524",      // darker charcoal (hover)
+        concrete: "#fafaf9",   // off-white background
+        rebar: "#78716c",      // muted gray text
+        hi: "#5aa72e",         // leaf green (accent / CTA)
+        hi2: "#47861f",        // darker green (hover / white-on-green)
+        "leaf-tint": "#eef6e8",// pale green wash
         ok: "#16a34a",
         warn: "#b45309",
         err: "#dc2626"
@@ -27,12 +28,11 @@ export default {
         ]
       },
       backgroundImage: {
-        // Caution-tape stripe used under the header
-        "caution-tape":
-          "repeating-linear-gradient(45deg, #facc15 0 14px, #0c0a09 14px 28px)"
+        // Thin charcoal → green accent rule under the header
+        "brand-rule": "linear-gradient(90deg, #1c1917 0%, #5aa72e 60%, #7fc24a 100%)"
       },
       boxShadow: {
-        chunky: "0 4px 0 0 #0c0a09"
+        soft: "0 1px 2px rgba(28,25,23,0.06), 0 6px 16px rgba(28,25,23,0.08)"
       }
     }
   },
