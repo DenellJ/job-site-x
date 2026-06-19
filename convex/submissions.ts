@@ -49,7 +49,7 @@ export const saveDraft = mutation({
       const existing = await ctx.db.get(args.submissionId);
       if (existing === null) throw new Error("Draft not found.");
       if (existing.submittedBy !== userId) throw new Error("Not your draft.");
-      if (existing.status !== "draft") throw new Error("This submission can no longer be edited.");
+      if (existing.status === "approved") throw new Error("Approved forms can no longer be edited.");
       await ctx.db.patch(args.submissionId, {
         startMedia: args.startMedia,
         startNotes: args.startNotes,
@@ -95,7 +95,9 @@ export const submit = mutation({
     const sub = await ctx.db.get(args.submissionId);
     if (sub === null) throw new Error("Submission not found.");
     if (sub.submittedBy !== userId) throw new Error("Not your submission.");
-    if (sub.status !== "draft") throw new Error("Already submitted.");
+    if (sub.status !== "draft" && sub.status !== "rejected") {
+      throw new Error("This form can no longer be submitted.");
+    }
 
     if (sub.startMedia.length === 0) {
       throw new Error("Section 1: upload a start photo or video before submitting.");

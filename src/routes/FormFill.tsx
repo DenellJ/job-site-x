@@ -53,6 +53,10 @@ export default function FormFill() {
 
   const def = getFormDef(detail.formType as FormType);
   const isDraft = detail.status === "draft";
+  const isSubmitted = detail.status === "submitted";
+  const isRejected = detail.status === "rejected";
+  const editable = detail.status !== "approved";
+  const lastRejection = detail.history.find((h) => h.decision === "rejected")?.comment ?? null;
   const hasPhotoSection = def.sections.some((s) => s.media);
 
   function setValue(fieldId: string, value: Value | undefined) {
@@ -83,7 +87,7 @@ export default function FormFill() {
     setMsg(null);
     try {
       await persist();
-      setMsg("Draft saved.");
+      setMsg("Saved.");
     } catch (e: any) {
       setErr(e.message ?? "Save failed.");
     } finally {
@@ -138,8 +142,15 @@ export default function FormFill() {
         <MediaThumbs media={detail.startMedia} />
       </div>
 
-      {isDraft ? (
+      {editable ? (
         <>
+          {isRejected && lastRejection && (
+            <div className="card border-l-4 border-l-err">
+              <h2 className="section-title text-err">⚠ Rejected — revise & resubmit</h2>
+              <p className="text-sm whitespace-pre-wrap">{lastRejection}</p>
+            </div>
+          )}
+
           <FormRenderer
             sections={def.sections}
             values={formValues}
@@ -167,23 +178,55 @@ export default function FormFill() {
           {err && <p className="text-err text-sm font-bold">{err}</p>}
           {msg && <p className="text-ok text-sm font-bold">{msg}</p>}
 
-          <div className="grid grid-cols-2 gap-3">
-            <button onClick={onSave} className="btn-ghost" disabled={busy}>
-              💾 Save Draft
-            </button>
-            <button onClick={onSubmit} className="btn-accent" disabled={busy || finalMedia.length === 0}>
-              {busy ? "Submitting…" : "Submit →"}
-            </button>
-          </div>
-          {finalMedia.length === 0 && (
-            <p className="text-xs text-warn font-bold text-center">
-              Submit unlocks once final completion evidence is added.
-            </p>
+          {isDraft && (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <button onClick={onSave} className="btn-ghost" disabled={busy}>
+                  💾 Save Draft
+                </button>
+                <button onClick={onSubmit} className="btn-accent" disabled={busy || finalMedia.length === 0}>
+                  {busy ? "Submitting…" : "Submit →"}
+                </button>
+              </div>
+              {finalMedia.length === 0 && (
+                <p className="text-xs text-warn font-bold text-center">
+                  Submit unlocks once final completion evidence is added.
+                </p>
+              )}
+              <button onClick={onDelete} className="btn-err w-full" disabled={busy}>
+                🗑 Delete Draft
+              </button>
+            </>
           )}
 
-          <button onClick={onDelete} className="btn-err w-full" disabled={busy}>
-            🗑 Delete Draft
-          </button>
+          {isSubmitted && (
+            <>
+              <button onClick={onSave} className="btn-accent w-full" disabled={busy}>
+                {busy ? "Saving…" : "💾 Save Changes"}
+              </button>
+              <p className="text-xs text-rebar text-center">
+                Editable until a manager approves — it locks once approved.
+              </p>
+            </>
+          )}
+
+          {isRejected && (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <button onClick={onSave} className="btn-ghost" disabled={busy}>
+                  💾 Save
+                </button>
+                <button onClick={onSubmit} className="btn-accent" disabled={busy || finalMedia.length === 0}>
+                  {busy ? "Resubmitting…" : "Resubmit →"}
+                </button>
+              </div>
+              {finalMedia.length === 0 && (
+                <p className="text-xs text-warn font-bold text-center">
+                  Add final completion evidence to resubmit.
+                </p>
+              )}
+            </>
+          )}
         </>
       ) : (
         <ReadOnlyView detail={detail} />

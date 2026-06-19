@@ -20,6 +20,7 @@ import type * as notifications from "../notifications.js";
 import type * as reportData from "../reportData.js";
 import type * as reports from "../reports.js";
 import type * as reset from "../reset.js";
+import type * as resscottLogo from "../resscottLogo.js";
 import type * as storage from "../storage.js";
 import type * as submissions from "../submissions.js";
 import type * as users from "../users.js";
@@ -44,6 +45,7 @@ declare const fullApi: ApiFromModules<{
   reportData: typeof reportData;
   reports: typeof reports;
   reset: typeof reset;
+  resscottLogo: typeof resscottLogo;
   storage: typeof storage;
   submissions: typeof submissions;
   users: typeof users;

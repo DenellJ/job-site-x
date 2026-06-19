@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useRef } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import SignatureCanvas from "react-signature-canvas";
 
 export interface SignaturePadHandle {
@@ -9,6 +9,7 @@ export interface SignaturePadHandle {
 
 export const SignaturePad = forwardRef<SignaturePadHandle>((_props, ref) => {
   const sigRef = useRef<SignatureCanvas | null>(null);
+  const wrapRef = useRef<HTMLDivElement | null>(null);
 
   useImperativeHandle(ref, () => ({
     isEmpty: () => sigRef.current?.isEmpty() ?? true,
@@ -16,30 +17,36 @@ export const SignaturePad = forwardRef<SignaturePadHandle>((_props, ref) => {
     toBlob: async () => {
       const canvas = sigRef.current?.getCanvas();
       if (!canvas) return null;
-      return await new Promise<Blob | null>((res) =>
-        canvas.toBlob((b) => res(b), "image/png")
-      );
-    }
+      return await new Promise<Blob | null>((res) => canvas.toBlob((b) => res(b), "image/png"));
+    },
   }));
+
+  // Match the canvas bitmap to its displayed width so pointer coordinates map
+  // 1:1 — otherwise only part of the pad responds to strokes.
+  useEffect(() => {
+    function resize() {
+      const canvas = sigRef.current?.getCanvas();
+      const wrap = wrapRef.current;
+      if (!canvas || !wrap) return;
+      canvas.width = wrap.clientWidth;
+      canvas.height = 180;
+      sigRef.current?.clear();
+    }
+    resize();
+    window.addEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
+  }, []);
 
   return (
     <div className="space-y-2">
-      <div className="border-2 border-dashed border-slate-300 rounded-xl bg-white">
+      <div ref={wrapRef} className="border-2 border-dashed border-stone-300 rounded-xl bg-white overflow-hidden">
         <SignatureCanvas
           ref={sigRef}
-          penColor="#0f172a"
-          canvasProps={{
-            className: "w-full h-44 rounded-xl",
-            width: 600,
-            height: 176
-          }}
+          penColor="#1c1917"
+          canvasProps={{ className: "block rounded-xl", style: { touchAction: "none" } }}
         />
       </div>
-      <button
-        type="button"
-        className="text-sm text-slate-600 underline"
-        onClick={() => sigRef.current?.clear()}
-      >
+      <button type="button" className="text-sm text-rebar underline" onClick={() => sigRef.current?.clear()}>
         Clear signature
       </button>
     </div>
