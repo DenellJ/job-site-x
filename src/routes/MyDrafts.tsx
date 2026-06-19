@@ -1,11 +1,18 @@
 import { Link } from "react-router-dom";
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import type { Id } from "../../convex/_generated/dataModel";
 import { SubmissionPill } from "../components/StatusPill";
 import { FORM_LABELS } from "../forms";
 
 export default function MyDrafts() {
   const rows = useQuery(api.submissions.listMine);
+  const deleteDraft = useMutation(api.submissions.deleteDraft);
+
+  async function handleDelete(id: string) {
+    if (!window.confirm("Delete this draft? This cannot be undone.")) return;
+    await deleteDraft({ submissionId: id as Id<"formSubmissions"> });
+  }
 
   return (
     <div className="space-y-5">
@@ -36,9 +43,20 @@ export default function MyDrafts() {
                   {r.label} · {new Date(r.updatedAt).toLocaleString()}
                 </div>
               </div>
-              <Link to={`/forms/${r.id}`} className="btn-primary !min-h-[44px] !py-2 text-sm">
-                {r.status === "draft" ? "Continue →" : "View →"}
-              </Link>
+              <div className="flex items-center gap-2">
+                {r.status === "draft" && (
+                  <button
+                    onClick={() => handleDelete(r.id)}
+                    className="btn-err !min-h-[44px] !py-2 px-3 text-sm"
+                    aria-label="Delete draft"
+                  >
+                    🗑
+                  </button>
+                )}
+                <Link to={`/forms/${r.id}`} className="btn-primary !min-h-[44px] !py-2 text-sm">
+                  {r.status === "draft" ? "Continue →" : "View →"}
+                </Link>
+              </div>
             </li>
           ))}
         </ul>

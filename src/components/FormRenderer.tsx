@@ -1,4 +1,6 @@
 import type { FormFieldDef, FormSection } from "../forms";
+import { MediaGallery } from "./MediaGallery";
+import type { UploadedMedia } from "../lib/types";
 
 type Value = string | number | boolean;
 
@@ -7,10 +9,14 @@ export function FormRenderer({
   sections,
   values,
   onChange,
+  attachments,
+  onAttachmentsChange,
 }: {
   sections: FormSection[];
   values: Record<string, Value>;
   onChange: (id: string, value: Value | undefined) => void;
+  attachments: UploadedMedia[];
+  onAttachmentsChange: (next: UploadedMedia[]) => void;
 }) {
   return (
     <div className="space-y-4">
@@ -22,14 +28,18 @@ export function FormRenderer({
               {section.note}
             </p>
           )}
-          {section.fields.map((field) => (
-            <Field
-              key={field.id}
-              field={field}
-              value={values[field.id]}
-              onChange={(v) => onChange(field.id, v)}
-            />
-          ))}
+          {section.media ? (
+            <MediaGallery value={attachments} onChange={onAttachmentsChange} accent />
+          ) : (
+            section.fields.map((field) => (
+              <Field
+                key={field.id}
+                field={field}
+                value={values[field.id]}
+                onChange={(v) => onChange(field.id, v)}
+              />
+            ))
+          )}
         </div>
       ))}
     </div>

@@ -19,3 +19,8 @@ AGENTS.md
 CLAUDE.md
 skills-lock.json
 convex/_generated/ai/
+
+# Stray working/business files (not part of the app; keep out of the repo)
+/Receipts/
+/logo/
+/Resscott_Payment_Receipt.docx

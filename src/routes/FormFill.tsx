@@ -29,6 +29,7 @@ export default function FormFill() {
   const detail = useQuery(api.submissions.getDetail, { submissionId });
   const saveDraft = useMutation(api.submissions.saveDraft);
   const submitMut = useMutation(api.submissions.submit);
+  const deleteDraft = useMutation(api.submissions.deleteDraft);
 
   const [seeded, setSeeded] = useState(false);
   const [formValues, setFormValues] = useState<Record<string, Value>>({});
@@ -52,6 +53,7 @@ export default function FormFill() {
 
   const def = getFormDef(detail.formType as FormType);
   const isDraft = detail.status === "draft";
+  const hasPhotoSection = def.sections.some((s) => s.media);
 
   function setValue(fieldId: string, value: Value | undefined) {
     setFormValues((prev) => {
@@ -103,6 +105,19 @@ export default function FormFill() {
     }
   }
 
+  async function onDelete() {
+    if (!window.confirm("Delete this draft? This cannot be undone.")) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      await deleteDraft({ submissionId });
+      nav("/mine");
+    } catch (e: any) {
+      setErr(e.message ?? "Delete failed.");
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="space-y-5">
       <div>
@@ -125,13 +140,21 @@ export default function FormFill() {
 
       {isDraft ? (
         <>
-          <FormRenderer sections={def.sections} values={formValues} onChange={setValue} />
+          <FormRenderer
+            sections={def.sections}
+            values={formValues}
+            onChange={setValue}
+            attachments={attachments}
+            onAttachmentsChange={setAttachments}
+          />
 
-          <div className="card space-y-3">
-            <h2 className="section-title">📎 Attachments (optional)</h2>
-            <p className="text-sm text-rebar">Attach any photos or videos that support this form.</p>
-            <MediaGallery value={attachments} onChange={setAttachments} label="Add attachment" />
-          </div>
+          {!hasPhotoSection && (
+            <div className="card space-y-3">
+              <h2 className="section-title">📎 Attachments (optional)</h2>
+              <p className="text-sm text-rebar">Attach any photos or videos that support this form.</p>
+              <MediaGallery value={attachments} onChange={setAttachments} label="Add attachment" />
+            </div>
+          )}
 
           <div className="card space-y-3">
             <h2 className="section-title">📷 Final completion evidence (required)</h2>
@@ -157,6 +180,10 @@ export default function FormFill() {
               Submit unlocks once final completion evidence is added.
             </p>
           )}
+
+          <button onClick={onDelete} className="btn-err w-full" disabled={busy}>
+            🗑 Delete Draft
+          </button>
         </>
       ) : (
         <ReadOnlyView detail={detail} />

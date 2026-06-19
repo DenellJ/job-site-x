@@ -131,6 +131,22 @@ export const submit = mutation({
   },
 });
 
+/** Delete one of the caller's own drafts (and its uploaded media). Drafts only. */
+export const deleteDraft = mutation({
+  args: { submissionId: v.id("formSubmissions") },
+  handler: async (ctx, { submissionId }) => {
+    const { userId } = await requireApproved(ctx);
+    const sub = await ctx.db.get(submissionId);
+    if (sub === null) throw new Error("Submission not found.");
+    if (sub.submittedBy !== userId) throw new Error("Not your submission.");
+    if (sub.status !== "draft") throw new Error("Only drafts can be deleted.");
+    for (const m of [...sub.startMedia, ...sub.attachments, ...sub.finalMedia]) {
+      await ctx.storage.delete(m.storageId);
+    }
+    await ctx.db.delete(submissionId);
+  },
+});
+
 /** The caller's own submissions (drafts + submitted/approved/rejected), newest first. */
 export const listMine = query({
   args: {},

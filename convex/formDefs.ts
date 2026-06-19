@@ -32,6 +32,9 @@ export interface FormSection {
   title: string;
   /** Optional guidance text (e.g. the "ensure pictures of the following" checklist). */
   note?: string;
+  /** When true, the section captures photos/videos (into the submission's
+   *  attachments) instead of rendering form fields. */
+  media?: boolean;
   fields: FormFieldDef[];
 }
 
@@ -82,7 +85,8 @@ export const FORM_DEFS: Record<FormType, FormDef> = {
       { title: "Visit Details", fields: visitDetailFields },
       {
         title: "Site Photos",
-        note: "Ensure photos are taken of: the appliances to be powered, the roof spaces, the appliance specification sheets, the breaker panel (if any), and the client's utility bill (if any). Attach them in Section 2 below.",
+        media: true,
+        note: "Take photos of: the appliances to be powered, the roof spaces, the appliance specification sheets, the breaker panel (if any), and the client's utility bill (if any).",
         fields: [],
       },
       {
@@ -145,7 +149,8 @@ export const FORM_DEFS: Record<FormType, FormDef> = {
       { title: "Visit Details", fields: visitDetailFields },
       {
         title: "Site Photos",
-        note: "Ensure photos are taken of: the hot water line, the roof space, where the pump can be stored, the closest 220V output plug, and the incoming water line. Attach them in Section 2 below.",
+        media: true,
+        note: "Take photos of: the hot water line, the roof space, where the pump can be stored, the closest 220V output plug, and the incoming water line.",
         fields: [],
       },
       {
