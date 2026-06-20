@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery } from "./_generated/server";
-import { requireManager } from "./helpers";
+import { requireProfile } from "./helpers";
 import { FORM_LABELS } from "./formDefs";
 
 /** Stringify a submitted field value for display in the report. */
@@ -15,9 +15,12 @@ function display(value: string | number | boolean | undefined): string {
 export const getForReport = internalQuery({
   args: { submissionId: v.id("formSubmissions") },
   handler: async (ctx, { submissionId }) => {
-    await requireManager(ctx);
+    const { userId, profile } = await requireProfile(ctx);
     const sub = await ctx.db.get(submissionId);
     if (sub === null) throw new Error("Submission not found.");
+    if (profile.role !== "manager" && sub.submittedBy !== userId) {
+      throw new Error("Not your submission.");
+    }
 
     // Latest approval → the approving manager's name + drawn signature.
     const approvals = await ctx.db

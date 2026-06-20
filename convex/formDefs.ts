@@ -1,19 +1,19 @@
 /**
- * Single source of truth for the five Resscott Section-2 digital forms.
+ * Single source of truth for the Resscott digital forms.
  *
  * Pure data + types only — NO Convex server APIs — so it can be imported by both
  * Convex functions (`convex/*`) and the React client (`src/*`).
  *
- * The Site Visit and Solar Water Heater forms are digital replicas of the sample
- * documents in `sample forms/`. Job Inspections, Job Ticket and New Job Task have
- * no sample yet — their fields are a reasonable draft to be confirmed during
- * Resscott's form sign-off (Phase 1 of the work plan).
+ * The three Site Visit forms and the Inspection form are digital replicas of the
+ * documents in `sample forms/`. Each form's generated document mirrors the
+ * matching sample (Site Visit → Servus letter; Inspection → IR-RES certificate).
  */
 
 export type FormType =
-  | "site_visit"
+  | "site_visit_lighting"
+  | "site_visit_solar"
+  | "site_visit_water_heater"
   | "job_inspection"
-  | "solar_water_heater"
   | "job_ticket"
   | "new_job_task";
 
@@ -24,15 +24,13 @@ export interface FormFieldDef {
   label: string;
   type: FormFieldType;
   required: boolean;
-  /** Only for "select" fields. */
   options?: string[];
 }
 
 export interface FormSection {
   title: string;
-  /** Optional guidance text (e.g. the "ensure pictures of the following" checklist). */
   note?: string;
-  /** When true, the section captures photos/videos (into the submission's
+  /** When true the section captures photos/videos (into the submission's
    *  attachments) instead of rendering form fields. */
   media?: boolean;
   fields: FormFieldDef[];
@@ -45,23 +43,25 @@ export interface FormDef {
 }
 
 export const FORM_TYPES: FormType[] = [
-  "site_visit",
+  "site_visit_lighting",
+  "site_visit_solar",
+  "site_visit_water_heater",
   "job_inspection",
-  "solar_water_heater",
   "job_ticket",
   "new_job_task",
 ];
 
 export const FORM_LABELS: Record<FormType, string> = {
-  site_visit: "Site Visit",
-  job_inspection: "Job Inspections",
-  solar_water_heater: "Solar Water Heater",
+  site_visit_lighting: "Site Visit — Lighting",
+  site_visit_solar: "Site Visit — Solar Systems",
+  site_visit_water_heater: "Site Visit — Solar Water Heaters",
+  job_inspection: "Inspection",
   job_ticket: "Job Ticket",
   new_job_task: "New Job Task",
 };
 
-// Shared visit-detail fields used by the two Site Visit-style forms.
-const visitDetailFields: FormFieldDef[] = [
+// ---- shared building blocks ----
+const visitDetails: FormFieldDef[] = [
   { id: "conductor", label: "Who is conducting the visit?", type: "text", required: true },
   { id: "time_arrived", label: "Time arrived", type: "time", required: true },
   { id: "client_name", label: "Name of client", type: "text", required: true },
@@ -77,12 +77,26 @@ const visitDetailFields: FormFieldDef[] = [
   },
 ];
 
+const ROOF = ["North-South", "East-West"];
+const ELECTRICAL = ["RESSCOTT", "Client / Other"];
+
+/** A `select` status + free-text comment pair (Inspection component rows). */
+function statusPair(id: string, label: string, options: string[]): FormFieldDef[] {
+  return [
+    { id: `${id}_status`, label, type: "select", required: false, options },
+    { id: `${id}_comment`, label: `${label} — comments`, type: "text", required: false },
+  ];
+}
+const TESTED = ["Tested & OK", "Faulty", "N/A"];
+const ORDER = ["In good order", "Defect found", "N/A"];
+
 export const FORM_DEFS: Record<FormType, FormDef> = {
-  site_visit: {
-    type: "site_visit",
-    title: "Site Visit",
+  // ============ SITE VISIT — SOLAR SYSTEMS ============
+  site_visit_solar: {
+    type: "site_visit_solar",
+    title: FORM_LABELS.site_visit_solar,
     sections: [
-      { title: "Visit Details", fields: visitDetailFields },
+      { title: "Visit Details", fields: visitDetails },
       {
         title: "Site Photos",
         media: true,
@@ -92,13 +106,6 @@ export const FORM_DEFS: Record<FormType, FormDef> = {
       {
         title: "Site Assessment",
         fields: [
-          {
-            id: "system_type",
-            label: "System type",
-            type: "select",
-            required: true,
-            options: ["Solar System", "Lighting"],
-          },
           { id: "ttec_access", label: "Do you have T&TEC access?", type: "textarea", required: false },
           {
             id: "offgrid_loads",
@@ -115,20 +122,8 @@ export const FORM_DEFS: Record<FormType, FormDef> = {
             type: "textarea",
             required: false,
           },
-          {
-            id: "electrical_by",
-            label: "Who will do the electrical work?",
-            type: "select",
-            required: false,
-            options: ["RESSCOTT", "Client / Other"],
-          },
-          {
-            id: "roof_orientation",
-            label: "Is the roof North-South or East-West?",
-            type: "select",
-            required: false,
-            options: ["North-South", "East-West"],
-          },
+          { id: "electrical_by", label: "Who will do the electrical work?", type: "select", required: false, options: ELECTRICAL },
+          { id: "roof_orientation", label: "Is the roof North-South or East-West?", type: "select", required: false, options: ROOF },
           { id: "breaker_location", label: "Where is the breaker panel located?", type: "textarea", required: false },
           {
             id: "system_storage",
@@ -142,11 +137,12 @@ export const FORM_DEFS: Record<FormType, FormDef> = {
     ],
   },
 
-  solar_water_heater: {
-    type: "solar_water_heater",
-    title: "Solar Water Heater",
+  // ============ SITE VISIT — SOLAR WATER HEATERS ============
+  site_visit_water_heater: {
+    type: "site_visit_water_heater",
+    title: FORM_LABELS.site_visit_water_heater,
     sections: [
-      { title: "Visit Details", fields: visitDetailFields },
+      { title: "Visit Details", fields: visitDetails },
       {
         title: "Site Photos",
         media: true,
@@ -163,13 +159,7 @@ export const FORM_DEFS: Record<FormType, FormDef> = {
             type: "textarea",
             required: false,
           },
-          {
-            id: "roof_orientation",
-            label: "Is the roof North-South or East-West?",
-            type: "select",
-            required: false,
-            options: ["North-South", "East-West"],
-          },
+          { id: "roof_orientation", label: "Is the roof North-South or East-West?", type: "select", required: false, options: ROOF },
           { id: "closest_220v", label: "Where is the closest 220V plug?", type: "textarea", required: false },
           { id: "additional_notes", label: "Additional notes", type: "textarea", required: false },
         ],
@@ -177,55 +167,165 @@ export const FORM_DEFS: Record<FormType, FormDef> = {
     ],
   },
 
-  job_inspection: {
-    type: "job_inspection",
-    title: "Job Inspections",
+  // ============ SITE VISIT — LIGHTING ============
+  site_visit_lighting: {
+    type: "site_visit_lighting",
+    title: FORM_LABELS.site_visit_lighting,
     sections: [
+      { title: "Visit Details", fields: visitDetails },
       {
-        title: "Inspection Details",
-        fields: [
-          { id: "inspection_date", label: "Inspection date", type: "text", required: false },
-          { id: "inspector", label: "Inspector", type: "text", required: true },
-          { id: "client_site", label: "Client / site", type: "text", required: true },
-          {
-            id: "system_type",
-            label: "System type",
-            type: "select",
-            required: false,
-            options: ["Solar PV", "Solar Water Heater", "Lighting", "Other"],
-          },
-        ],
+        title: "Site Photos",
+        media: true,
+        note: "Take an overview photo of the area the client would like lit, plus any relevant surroundings.",
+        fields: [],
       },
       {
-        title: "Inspection Checklist",
+        title: "Site Assessment",
         fields: [
-          { id: "check_panels", label: "Panels secure & intact", type: "yesno", required: false },
-          { id: "check_wiring", label: "Wiring & connections OK", type: "yesno", required: false },
-          { id: "check_inverter", label: "Inverter functioning", type: "yesno", required: false },
-          { id: "check_batteries", label: "Batteries / storage OK", type: "yesno", required: false },
-          { id: "check_mounting", label: "Mounting & structure OK", type: "yesno", required: false },
-          { id: "defects_notes", label: "Defects / observations", type: "textarea", required: false },
-        ],
-      },
-      {
-        title: "Outcome",
-        fields: [
+          { id: "area_dimensions", label: "What are the dimensions of the area?", type: "textarea", required: false },
+          { id: "cameras", label: "Would you like cameras with this system? (we supply)", type: "yesno", required: false },
+          { id: "hours_of_light", label: "How many hours of light would best suffice? (e.g. 8, 12)", type: "text", required: false },
+          { id: "budget", label: "Client's budget", type: "text", required: false },
+          { id: "shading", label: "Does the home have any shading?", type: "textarea", required: false },
           {
-            id: "overall_result",
-            label: "Overall result",
-            type: "select",
+            id: "construction_followup",
+            label: "If under construction: expected completion date and follow-up date",
+            type: "textarea",
             required: false,
-            options: ["Pass", "Pass with notes", "Fail"],
           },
-          { id: "recommendations", label: "Recommendations", type: "textarea", required: false },
+          { id: "electrical_by", label: "Who will do the electrical work?", type: "select", required: false, options: ELECTRICAL },
+          { id: "roof_orientation", label: "Is the roof North-South or East-West?", type: "select", required: false, options: ROOF },
+          { id: "breaker_location", label: "Where is the breaker panel located?", type: "textarea", required: false },
+          {
+            id: "system_storage",
+            label: "Where will the batteries and system (charge controller / inverter) be stored?",
+            type: "textarea",
+            required: false,
+          },
         ],
       },
     ],
   },
 
+  // ============ INSPECTION (IR-RES certificate) ============
+  job_inspection: {
+    type: "job_inspection",
+    title: FORM_LABELS.job_inspection,
+    sections: [
+      {
+        title: "Equipment Details",
+        fields: [
+          { id: "occupier", label: "Occupier", type: "text", required: true },
+          { id: "address", label: "Address", type: "textarea", required: false },
+          { id: "description", label: "Description of solar system", type: "text", required: false },
+          { id: "location", label: "Location", type: "text", required: false },
+          { id: "serial_no", label: "Serial # / Local #", type: "text", required: false },
+          { id: "rated_capacity", label: "Rated capacity", type: "text", required: false },
+          { id: "date_construction", label: "Date of construction", type: "text", required: false },
+          { id: "date_last_exam", label: "Date of last examination", type: "text", required: false },
+          { id: "time_in_service", label: "How long equipment was in service", type: "text", required: false },
+        ],
+      },
+      {
+        title: "Type of Operation & Facility",
+        fields: [
+          {
+            id: "operation_frequency",
+            label: "How often system works",
+            type: "select",
+            required: false,
+            options: ["Daily", "Weekly", "Monthly", "Intermittently"],
+          },
+          {
+            id: "last_repaired",
+            label: "Last repaired",
+            type: "select",
+            required: false,
+            options: ["By OEM", "Locally", "No previous record"],
+          },
+          {
+            id: "facility_type",
+            label: "Type of facility",
+            type: "select",
+            required: false,
+            options: [
+              "Car park",
+              "Warehouse (internal)",
+              "Commercial",
+              "Laydown yard",
+              "Roadway / walkways",
+              "General social compound",
+              "Home / Residential",
+              "Industrial",
+              "Estate",
+              "Park",
+              "Sporting ground",
+              "Stadium",
+              "Other",
+            ],
+          },
+        ],
+      },
+      {
+        title: "Inverter & Battery Inspection",
+        fields: [
+          ...statusPair("inv_controls", "Controls", TESTED),
+          ...statusPair("inv_push_buttons", "Push buttons", TESTED),
+          ...statusPair("inv_fan", "Fan / cooler operation", TESTED),
+          ...statusPair("inv_connections", "Positive / negative connections", TESTED),
+          ...statusPair("inv_upper_trip", "Upper limit trip", TESTED),
+          ...statusPair("inv_lower_trip", "Lower limit trip", TESTED),
+          ...statusPair("inv_pv_input", "PV input connection", TESTED),
+          ...statusPair("inv_load_output", "Load output", TESTED),
+          ...statusPair("inv_safety", "Safety devices", TESTED),
+          ...statusPair("inv_utility_charge", "Utility charge current (hybrid)", TESTED),
+          ...statusPair("bat_wiring", "Battery bank wiring", TESTED),
+          ...statusPair("bat_covering", "Battery bank covering", TESTED),
+        ],
+      },
+      {
+        title: "Solar Panels & Racking",
+        fields: [
+          ...statusPair("sp_enclosure", "(a) Enclosure / combiner box", ORDER),
+          ...statusPair("sp_piping", "(b) Piping / conduit run", ORDER),
+          ...statusPair("sp_racking", "(c) PV array racking", ORDER),
+          ...statusPair("sp_panels", "(d) PV panels", ORDER),
+          ...statusPair("sp_wiring", "(e) PV wiring to combiner box", ORDER),
+          ...statusPair("sp_overrun", "(f) Over-running devices", ORDER),
+          ...statusPair("sp_other_elec", "(g) Other electrical equipment", ORDER),
+          ...statusPair("sp_frame", "(h) PV frame (ground / roof mounted)", ORDER),
+          ...statusPair("sp_other", "(i) Other parts", ORDER),
+          { id: "parts_inaccessible", label: "What parts were inaccessible? (if any)", type: "text", required: false },
+        ],
+      },
+      {
+        title: "During Inspection / Repair",
+        fields: [
+          { id: "issues_observed", label: "What issues were observed? (if any)", type: "textarea", required: false },
+          { id: "notice_defects", label: "Notice of defects during repair / service (if any)", type: "textarea", required: false },
+          { id: "repairs_done", label: "Repairs / service done — description of parts repaired", type: "textarea", required: false },
+        ],
+      },
+      {
+        title: "Photos",
+        media: true,
+        note: "Attach inspection photos (panel layout, breakers, inverter, transformer, PV arrays, etc.).",
+        fields: [],
+      },
+      {
+        title: "Outcome",
+        fields: [
+          { id: "recommendations", label: "Recommendations", type: "textarea", required: false },
+          { id: "next_service_due", label: "Next service examination due", type: "text", required: false },
+        ],
+      },
+    ],
+  },
+
+  // ============ JOB TICKET ============
   job_ticket: {
     type: "job_ticket",
-    title: "Job Ticket",
+    title: FORM_LABELS.job_ticket,
     sections: [
       {
         title: "Ticket",
@@ -265,12 +365,14 @@ export const FORM_DEFS: Record<FormType, FormDef> = {
           { id: "notes", label: "Notes", type: "textarea", required: false },
         ],
       },
+      { title: "Photos", media: true, note: "Attach any photos for this ticket.", fields: [] },
     ],
   },
 
+  // ============ NEW JOB TASK ============
   new_job_task: {
     type: "new_job_task",
-    title: "New Job Task",
+    title: FORM_LABELS.new_job_task,
     sections: [
       {
         title: "Task",
@@ -295,6 +397,7 @@ export const FORM_DEFS: Record<FormType, FormDef> = {
           { id: "notes", label: "Notes", type: "textarea", required: false },
         ],
       },
+      { title: "Photos", media: true, note: "Attach any photos for this task.", fields: [] },
     ],
   },
 };
@@ -310,10 +413,15 @@ export function flatFields(type: FormType): FormFieldDef[] {
 
 /** Human-friendly label for a submission, derived from its key field. */
 export function deriveLabel(type: FormType, values: Record<string, string | number | boolean>): string {
-  const candidates = ["client_name", "client_site", "task_title", "inspector"];
+  const candidates = ["client_name", "occupier", "client_site", "task_title", "conductor"];
   for (const key of candidates) {
     const v = values[key];
     if (typeof v === "string" && v.trim()) return v.trim();
   }
   return FORM_LABELS[type];
+}
+
+/** True for the Site Visit family (whose report is an amendable Word document). */
+export function isSiteVisit(type: FormType): boolean {
+  return type === "site_visit_lighting" || type === "site_visit_solar" || type === "site_visit_water_heater";
 }

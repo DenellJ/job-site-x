@@ -14,9 +14,10 @@ export const accountStatusValidator = v.union(
 
 /** The five Section-2 digital forms (Resscott). */
 export const formTypeValidator = v.union(
-  v.literal("site_visit"),
+  v.literal("site_visit_lighting"),
+  v.literal("site_visit_solar"),
+  v.literal("site_visit_water_heater"),
   v.literal("job_inspection"),
-  v.literal("solar_water_heater"),
   v.literal("job_ticket"),
   v.literal("new_job_task"),
 );

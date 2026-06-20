@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
@@ -30,12 +30,14 @@ export default function FormFill() {
   const saveDraft = useMutation(api.submissions.saveDraft);
   const submitMut = useMutation(api.submissions.submit);
   const deleteDraft = useMutation(api.submissions.deleteDraft);
+  const convertDoc = useAction(api.reports.convert);
 
   const [seeded, setSeeded] = useState(false);
   const [formValues, setFormValues] = useState<Record<string, Value>>({});
   const [attachments, setAttachments] = useState<UploadedMedia[]>([]);
   const [finalMedia, setFinalMedia] = useState<UploadedMedia[]>([]);
   const [busy, setBusy] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
@@ -122,6 +124,29 @@ export default function FormFill() {
     }
   }
 
+  async function onDownload() {
+    if (!detail) return;
+    setDownloading(true);
+    setErr(null);
+    try {
+      const { url } = await convertDoc({ submissionId });
+      const isWord = detail.formType.startsWith("site_visit");
+      if (url) {
+        const a = document.createElement("a");
+        a.href = url;
+        a.target = "_blank";
+        a.download = `${detail.label || "form"}.${isWord ? "docx" : "pdf"}`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }
+    } catch (e: any) {
+      setErr(e.message ?? "Download failed.");
+    } finally {
+      setDownloading(false);
+    }
+  }
+
   return (
     <div className="space-y-5">
       <div>
@@ -141,6 +166,14 @@ export default function FormFill() {
         <p className="text-sm whitespace-pre-wrap">{detail.startNotes || "—"}</p>
         <MediaThumbs media={detail.startMedia} />
       </div>
+
+      {detail.status !== "draft" && (
+        <button onClick={onDownload} className="btn-ghost w-full" disabled={downloading}>
+          {downloading
+            ? "Preparing…"
+            : `⬇ Download ${detail.formType.startsWith("site_visit") ? "Word" : "PDF"}`}
+        </button>
+      )}
 
       {editable ? (
         <>

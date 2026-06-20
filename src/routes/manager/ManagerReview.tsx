@@ -73,11 +73,14 @@ export default function ManagerReview() {
   }
 
   async function runConvert(reconvert: boolean) {
-    if (reconvert && !window.confirm("Re-generate the report? This replaces the current PDF.")) return;
+    if (!detail) return;
+    if (reconvert && !window.confirm("Re-generate the report? This replaces the current document.")) return;
     setConverting(true);
     setErr(null);
     try {
-      await convert({ submissionId });
+      const { url } = await convert({ submissionId });
+      const isWord = detail.formType.startsWith("site_visit");
+      if (url) download(url, `${detail.label || "report"}.${isWord ? "docx" : "pdf"}`);
     } catch (e: any) {
       setErr(e.message ?? "Conversion failed.");
     } finally {
@@ -85,11 +88,11 @@ export default function ManagerReview() {
     }
   }
 
-  function download(url: string) {
+  function download(url: string, filename: string) {
     const a = document.createElement("a");
     a.href = url;
     a.target = "_blank";
-    a.download = "inspection-report.pdf";
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -98,6 +101,9 @@ export default function ManagerReview() {
   if (detail === undefined) return <p>Loading…</p>;
   if (detail === null) return <div className="card text-err font-bold">Submission not found.</div>;
   const pending = detail.status === "submitted";
+  const isWord = detail.formType.startsWith("site_visit");
+  const docType = isWord ? "Word" : "PDF";
+  const ext = isWord ? "docx" : "pdf";
 
   return (
     <div className="space-y-5">
@@ -170,33 +176,33 @@ export default function ManagerReview() {
         </>
       )}
 
-      {/* Report conversion */}
+      {/* Report / document generation */}
       <div className="card space-y-3">
-        <h2 className="section-title">📄 Inspection Report</h2>
+        <h2 className="section-title">📄 {docType} Report</h2>
         {detail.reportVersion > 0 ? (
           <p className="text-sm text-rebar">
-            Converted (v{detail.reportVersion})
+            Generated (v{detail.reportVersion})
             {detail.reportGeneratedAt ? ` · ${new Date(detail.reportGeneratedAt).toLocaleString()}` : ""}
           </p>
         ) : (
-          <p className="text-sm text-warn font-bold">Not yet converted.</p>
+          <p className="text-sm text-warn font-bold">Not yet generated.</p>
         )}
         <div className="grid grid-cols-2 gap-3">
           {detail.reportVersion === 0 ? (
             <button onClick={() => runConvert(false)} className="btn-accent col-span-2" disabled={converting}>
-              {converting ? "Converting…" : "Convert to PDF Report"}
+              {converting ? "Generating…" : `Convert to ${docType}`}
             </button>
           ) : (
             <>
               <button onClick={() => runConvert(true)} className="btn-ghost" disabled={converting}>
-                {converting ? "Converting…" : "🔄 Convert Again"}
+                {converting ? "Generating…" : "🔄 Convert Again"}
               </button>
               <button
-                onClick={() => detail.reportUrl && download(detail.reportUrl)}
+                onClick={() => detail.reportUrl && download(detail.reportUrl, `${detail.label || "report"}.${ext}`)}
                 className="btn-primary"
                 disabled={!detail.reportUrl}
               >
-                ⬇ Download PDF
+                ⬇ Download {docType}
               </button>
             </>
           )}

@@ -25,6 +25,7 @@ import type * as storage from "../storage.js";
 import type * as submissions from "../submissions.js";
 import type * as users from "../users.js";
 import type * as validators from "../validators.js";
+import type * as wordReport from "../wordReport.js";
 
 import type {
   ApiFromModules,
@@ -50,6 +51,7 @@ declare const fullApi: ApiFromModules<{
   submissions: typeof submissions;
   users: typeof users;
   validators: typeof validators;
+  wordReport: typeof wordReport;
 }>;
 
 /**
