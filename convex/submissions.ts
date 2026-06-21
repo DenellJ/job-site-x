@@ -199,7 +199,7 @@ export const getDetail = query({
     const { userId, profile } = await requireProfile(ctx);
     const sub = await ctx.db.get(submissionId);
     if (sub === null) return null;
-    if (profile.role !== "manager" && sub.submittedBy !== userId) {
+    if (profile.role === "personnel" && sub.submittedBy !== userId) {
       throw new Error("Not your submission.");
     }
 

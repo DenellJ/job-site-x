@@ -6,8 +6,10 @@ import { FORM_LABELS, FORM_TYPES } from "../../forms";
 import type { FormType, UserRole } from "../../lib/types";
 
 export default function ManagerUsers() {
+  const me = useQuery(api.users.me);
   const pending = useQuery(api.users.listPendingUsers) ?? [];
   const users = useQuery(api.users.listProfiles) ?? [];
+  const isAdmin = me?.role === "admin";
 
   return (
     <div className="space-y-5">
@@ -29,7 +31,7 @@ export default function ManagerUsers() {
         )}
       </section>
 
-      <CreateAccount />
+      <CreateAccount isAdmin={isAdmin} />
 
       <section className="card">
         <h2 className="section-title">Existing Accounts</h2>
@@ -166,8 +168,8 @@ function AccountRow({
           <div className="text-xs text-rebar">@{user.username}</div>
         </div>
         <span className={`pill ${statusClass}`}>{user.status}</span>
-        <span className={`pill ${user.role === "manager" ? "bg-ink text-hi border-ink" : "bg-hi text-ink border-ink"}`}>
-          {user.role}
+        <span className={`pill ${user.role === "personnel" ? "bg-hi text-ink border-ink" : "bg-ink text-hi border-ink"}`}>
+          {user.role === "personnel" ? "contractor" : user.role}
         </span>
       </div>
       {user.role === "personnel" && (
@@ -203,7 +205,7 @@ function AccountRow({
   );
 }
 
-function CreateAccount() {
+function CreateAccount({ isAdmin }: { isAdmin: boolean }) {
   const createUser = useAction(api.users.createUser);
   const [username, setUsername] = useState("");
   const [fullName, setFullName] = useState("");
@@ -265,8 +267,8 @@ function CreateAccount() {
         <div className="sm:col-span-2">
           <label className="label">Role</label>
           <select className="input" value={role} onChange={(e) => setRole(e.target.value as UserRole)}>
-            <option value="personnel">Personnel</option>
-            <option value="manager">Manager</option>
+            <option value="personnel">Contractor / User</option>
+            {isAdmin && <option value="manager">Manager</option>}
           </select>
         </div>
         {role === "personnel" && (

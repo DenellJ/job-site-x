@@ -35,15 +35,15 @@ export const me = query({
   },
 });
 
-/** True when no manager exists yet — i.e. the site still needs first-run setup. */
+/** True when no admin exists yet — i.e. the site still needs first-run setup. */
 export const isSetupNeeded = query({
   args: {},
   handler: async (ctx) => {
-    const manager = await ctx.db
+    const admin = await ctx.db
       .query("profiles")
-      .withIndex("by_role", (q) => q.eq("role", "manager"))
+      .withIndex("by_role", (q) => q.eq("role", "admin"))
       .first();
-    return manager === null;
+    return admin === null;
   },
 });
 
@@ -142,6 +142,17 @@ export const managerExists = internalQuery({
   },
 });
 
+export const adminExists = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const admin = await ctx.db
+      .query("profiles")
+      .withIndex("by_role", (q) => q.eq("role", "admin"))
+      .first();
+    return admin !== null;
+  },
+});
+
 export const profileRole = internalQuery({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId }) => {
@@ -154,10 +165,10 @@ export const profileRole = internalQuery({
 });
 
 /**
- * First-run bootstrap: create the very first manager account. Only allowed while
- * no manager exists. The client signs in with the same credentials afterward.
+ * First-run bootstrap: create the very first admin account. Only allowed while
+ * no admin exists. The client signs in with the same credentials afterward.
  */
-export const setupFirstManager = action({
+export const setupFirstAdmin = action({
   args: {
     email: v.string(),
     password: v.string(),
@@ -165,8 +176,8 @@ export const setupFirstManager = action({
     fullName: v.union(v.string(), v.null()),
   },
   handler: async (ctx, args) => {
-    if (await ctx.runQuery(internal.users.managerExists, {})) {
-      throw new Error("A site manager account already exists.");
+    if (await ctx.runQuery(internal.users.adminExists, {})) {
+      throw new Error("An admin account already exists.");
     }
     const { user } = await createAccount(ctx, {
       provider: "password",
@@ -177,7 +188,7 @@ export const setupFirstManager = action({
       userId: user._id,
       username: args.username,
       fullName: args.fullName,
-      role: "manager",
+      role: "admin",
       status: "approved",
       allowedForms: FORM_TYPES,
     });
@@ -209,6 +220,34 @@ export const seedDevManager = internalAction({
       allowedForms: FORM_TYPES,
     });
     return "Seeded manager@test.com / 1234";
+  },
+});
+
+/**
+ * Seed the admin account `admin@jobsitex.com` / `admin1234`. Idempotent — does
+ * nothing if an admin already exists. Run once with:
+ *   npx convex run users:seedAdmin '{}'
+ */
+export const seedAdmin = internalAction({
+  args: {},
+  handler: async (ctx): Promise<string> => {
+    if (await ctx.runQuery(internal.users.adminExists, {})) {
+      return "An admin already exists — nothing to seed.";
+    }
+    const { user } = await createAccount(ctx, {
+      provider: "password",
+      account: { id: "admin@jobsitex.com", secret: "admin1234" },
+      profile: { email: "admin@jobsitex.com" },
+    });
+    await ctx.runMutation(internal.users.insertProfile, {
+      userId: user._id,
+      username: "admin",
+      fullName: "Administrator",
+      role: "admin",
+      status: "approved",
+      allowedForms: FORM_TYPES,
+    });
+    return "Seeded admin@jobsitex.com / admin1234";
   },
 });
 
@@ -258,7 +297,11 @@ export const createUser = action({
     const callerRole = await ctx.runQuery(internal.users.profileRole, {
       userId: callerId,
     });
-    if (callerRole !== "manager") throw new Error("Managers only.");
+    const isStaff = callerRole === "manager" || callerRole === "admin";
+    if (!isStaff) throw new Error("Managers only.");
+    if (args.role !== "personnel" && callerRole !== "admin") {
+      throw new Error("Only an admin can create manager accounts.");
+    }
 
     const { user } = await createAccount(ctx, {
       provider: "password",
@@ -271,7 +314,7 @@ export const createUser = action({
       fullName: args.fullName,
       role: args.role,
       status: "approved",
-      allowedForms: args.role === "manager" ? FORM_TYPES : args.allowedForms,
+      allowedForms: args.role === "personnel" ? args.allowedForms : FORM_TYPES,
     });
   },
 });

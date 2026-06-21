@@ -25,28 +25,48 @@ export async function requireApproved(ctx: QueryCtx) {
   return result;
 }
 
-/** Like {@link requireProfile} but additionally requires the manager role. */
+/** Like {@link requireProfile} but requires staff (manager OR admin — admins are
+ *  superusers, so every manager-gated function works for them too). */
 export async function requireManager(ctx: QueryCtx) {
   const result = await requireProfile(ctx);
-  if (result.profile.role !== "manager") throw new Error("Managers only.");
+  if (result.profile.role !== "manager" && result.profile.role !== "admin") {
+    throw new Error("Managers only.");
+  }
   return result;
 }
 
-/** All manager user ids (single-tenant: usually one). For routing notifications. */
+/** Like {@link requireProfile} but requires the admin role. */
+export async function requireAdmin(ctx: QueryCtx) {
+  const result = await requireProfile(ctx);
+  if (result.profile.role !== "admin") throw new Error("Admins only.");
+  return result;
+}
+
+/** All staff (admin + manager) user ids. For routing signup/submission notifications. */
 export async function getManagerIds(ctx: QueryCtx): Promise<Array<import("./_generated/dataModel").Id<"users">>> {
   const managers = await ctx.db
     .query("profiles")
     .withIndex("by_role", (q) => q.eq("role", "manager"))
     .collect();
-  return managers.map((m) => m.userId);
+  const admins = await ctx.db
+    .query("profiles")
+    .withIndex("by_role", (q) => q.eq("role", "admin"))
+    .collect();
+  return [...managers, ...admins].map((p) => p.userId);
 }
 
-/** The primary (oldest) manager's user id, or throw if none exists. */
+/** The primary staff user id for a submission: the oldest manager, else the
+ *  oldest admin. Throws only if no staff account exists at all. */
 export async function getPrimaryManagerId(ctx: QueryCtx) {
   const manager = await ctx.db
     .query("profiles")
     .withIndex("by_role", (q) => q.eq("role", "manager"))
     .first();
-  if (manager === null) throw new Error("No manager account exists.");
-  return manager.userId;
+  if (manager !== null) return manager.userId;
+  const admin = await ctx.db
+    .query("profiles")
+    .withIndex("by_role", (q) => q.eq("role", "admin"))
+    .first();
+  if (admin === null) throw new Error("No staff account exists.");
+  return admin.userId;
 }

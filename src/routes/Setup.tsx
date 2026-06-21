@@ -5,7 +5,7 @@ import { api } from "../../convex/_generated/api";
 
 export default function Setup() {
   const isSetupNeeded = useQuery(api.users.isSetupNeeded);
-  const setupFirstManager = useAction(api.users.setupFirstManager);
+  const setupFirstAdmin = useAction(api.users.setupFirstAdmin);
   const { signIn } = useAuthActions();
 
   const [username, setUsername] = useState("");
@@ -20,7 +20,7 @@ export default function Setup() {
     setErr(null);
     setBusy(true);
     try {
-      await setupFirstManager({ email, password, username, fullName: fullName || null });
+      await setupFirstAdmin({ email, password, username, fullName: fullName || null });
       // Sign in with the same credentials — the app flips to the authed view,
       // and the `/setup` route then redirects home.
       await signIn("password", { email, password, flow: "signIn" });
@@ -44,7 +44,7 @@ export default function Setup() {
         <div className="card max-w-md">
           <h1 className="text-xl font-black uppercase mb-2">Already Set Up</h1>
           <p className="text-rebar mb-4">
-            A site manager account already exists. Please sign in.
+            An admin account already exists. Please sign in.
           </p>
           <a className="btn-primary" href="/login">Go to Sign In</a>
         </div>
@@ -59,7 +59,7 @@ export default function Setup() {
         <div>
           <h1 className="text-2xl font-black uppercase tracking-tight">Set Up Site</h1>
           <p className="text-rebar text-sm mt-1">
-            Create the first site manager account. From here you'll add crew and create jobs.
+            Create the first admin account. From here you'll create managers and manage users.
           </p>
         </div>
         <Field label="Username" value={username} onChange={setUsername} required />
@@ -75,7 +75,7 @@ export default function Setup() {
         />
         {err && <p className="text-err text-sm font-bold">{err}</p>}
         <button className="btn-accent w-full" disabled={busy}>
-          {busy ? "Creating…" : "Create Manager Account"}
+          {busy ? "Creating…" : "Create Admin Account"}
         </button>
       </form>
     </Centered>

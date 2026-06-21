@@ -45,6 +45,9 @@ export default function Register() {
         ) : (
           <form onSubmit={submit} className="space-y-4">
             <h1 className="text-2xl font-black uppercase">Create Account</h1>
+            <p className="text-sm text-rebar -mt-2">
+              Sign up as a contractor / user. A manager approves your account and assigns your forms.
+            </p>
             <div>
               <label className="label">Username</label>
               <input className="input" required value={username} onChange={(e) => setUsername(e.target.value)} />

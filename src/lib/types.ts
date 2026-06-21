@@ -2,7 +2,7 @@ import type { FormType } from "../forms";
 
 export type { FormType } from "../forms";
 
-export type UserRole = "manager" | "personnel";
+export type UserRole = "admin" | "manager" | "personnel";
 export type AccountStatus = "pending" | "approved" | "declined";
 export type SubmissionStatus = "draft" | "submitted" | "approved" | "rejected";
 

@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 
 /** Account role. */
-export const roleValidator = v.union(v.literal("manager"), v.literal("personnel"));
+export const roleValidator = v.union(v.literal("admin"), v.literal("manager"), v.literal("personnel"));
 
 /** Account approval status. Personnel self-register as "pending"; the manager
  *  approves (→ "approved", with form access) or declines (→ "declined").

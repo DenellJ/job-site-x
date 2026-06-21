@@ -12,10 +12,11 @@ export function AppShell({
 }) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const isManager = profile.role === "manager";
-  const home = isManager ? "/manager" : "/";
+  const isStaff = profile.role === "manager" || profile.role === "admin";
+  const home = isStaff ? "/manager" : "/";
+  const roleLabel = profile.role === "personnel" ? "contractor" : profile.role;
 
-  const links = isManager
+  const links = isStaff
     ? [
         { to: "/manager", label: "Dashboard" },
         { to: "/manager/users", label: "Users" },
@@ -49,7 +50,7 @@ export function AppShell({
             })}
           </nav>
           <span className="ml-auto text-xs uppercase tracking-wide text-rebar hidden sm:block">
-            {profile.fullName || profile.username} · <span className="text-hi2 font-semibold">{profile.role}</span>
+            {profile.fullName || profile.username} · <span className="text-hi2 font-semibold">{roleLabel}</span>
           </span>
           <button
             className="text-xs font-semibold uppercase tracking-wide border border-stone-300 px-3 py-2 rounded-md hover:border-hi hover:text-hi2"

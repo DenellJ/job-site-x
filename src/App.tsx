@@ -65,20 +65,20 @@ function AuthedApp() {
     return <PendingApproval profile={profile} onSignOut={signOut} />;
   }
 
-  const isManager = profile.role === "manager";
+  const isStaff = profile.role === "manager" || profile.role === "admin";
 
   return (
     <AppShell profile={profile} onSignOut={signOut}>
       <NotificationBar notices={notices} onDismiss={dismiss} />
       <Routes>
-        <Route path="/" element={isManager ? <Navigate to="/manager" replace /> : <StartJob profile={profile} />} />
-        {!isManager && (
+        <Route path="/" element={isStaff ? <Navigate to="/manager" replace /> : <StartJob profile={profile} />} />
+        {!isStaff && (
           <>
             <Route path="/forms/:id" element={<FormFill />} />
             <Route path="/mine" element={<MyDrafts />} />
           </>
         )}
-        {isManager && (
+        {isStaff && (
           <>
             <Route path="/manager" element={<ManagerDashboard />} />
             <Route path="/manager/forms/:formType" element={<ManagerFolder />} />
