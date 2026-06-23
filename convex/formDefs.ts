@@ -17,7 +17,7 @@ export type FormType =
   | "job_ticket"
   | "new_job_task";
 
-export type FormFieldType = "text" | "textarea" | "number" | "yesno" | "select" | "time";
+export type FormFieldType = "text" | "textarea" | "number" | "yesno" | "select" | "time" | "sketch";
 
 export interface FormFieldDef {
   id: string;
@@ -124,6 +124,7 @@ export const FORM_DEFS: Record<FormType, FormDef> = {
           },
           { id: "electrical_by", label: "Who will do the electrical work?", type: "select", required: false, options: ELECTRICAL },
           { id: "roof_orientation", label: "Is the roof North-South or East-West?", type: "select", required: false, options: ROOF },
+          { id: "site_sketch", label: "Sketch of the roof / site layout", type: "sketch", required: false },
           { id: "breaker_location", label: "Where is the breaker panel located?", type: "textarea", required: false },
           {
             id: "system_storage",
@@ -160,6 +161,7 @@ export const FORM_DEFS: Record<FormType, FormDef> = {
             required: false,
           },
           { id: "roof_orientation", label: "Is the roof North-South or East-West?", type: "select", required: false, options: ROOF },
+          { id: "site_sketch", label: "Sketch of the roof / plumbing layout", type: "sketch", required: false },
           { id: "closest_220v", label: "Where is the closest 220V plug?", type: "textarea", required: false },
           { id: "additional_notes", label: "Additional notes", type: "textarea", required: false },
         ],
@@ -195,6 +197,7 @@ export const FORM_DEFS: Record<FormType, FormDef> = {
           },
           { id: "electrical_by", label: "Who will do the electrical work?", type: "select", required: false, options: ELECTRICAL },
           { id: "roof_orientation", label: "Is the roof North-South or East-West?", type: "select", required: false, options: ROOF },
+          { id: "site_sketch", label: "Sketch of the area to be lit", type: "sketch", required: false },
           { id: "breaker_location", label: "Where is the breaker panel located?", type: "textarea", required: false },
           {
             id: "system_storage",

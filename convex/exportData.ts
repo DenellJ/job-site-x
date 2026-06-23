@@ -19,6 +19,7 @@ export const getAllForExport = internalQuery({
       .sort((a, b) => b._creationTime - a._creationTime)
       .map((s) => {
         const details = s.formFields
+          .filter((f) => f.type !== "sketch")
           .map((f) => `${f.label}: ${display(s.formValues[f.id])}`)
           .join(" | ");
         return {

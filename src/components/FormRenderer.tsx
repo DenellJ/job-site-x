@@ -1,5 +1,6 @@
 import type { FormFieldDef, FormSection } from "../forms";
 import { MediaGallery } from "./MediaGallery";
+import { SketchPad } from "./SketchPad";
 import type { UploadedMedia } from "../lib/types";
 
 type Value = string | number | boolean;
@@ -11,12 +12,14 @@ export function FormRenderer({
   onChange,
   attachments,
   onAttachmentsChange,
+  onBeforeCapture,
 }: {
   sections: FormSection[];
   values: Record<string, Value>;
   onChange: (id: string, value: Value | undefined) => void;
   attachments: UploadedMedia[];
   onAttachmentsChange: (next: UploadedMedia[]) => void;
+  onBeforeCapture?: () => void;
 }) {
   return (
     <div className="space-y-4">
@@ -29,7 +32,12 @@ export function FormRenderer({
             </p>
           )}
           {section.media ? (
-            <MediaGallery value={attachments} onChange={onAttachmentsChange} accent />
+            <MediaGallery
+              value={attachments}
+              onChange={onAttachmentsChange}
+              accent
+              onBeforeCapture={onBeforeCapture}
+            />
           ) : (
             section.fields.map((field) => (
               <Field
@@ -100,6 +108,18 @@ function Field({
             </option>
           ))}
         </select>
+      </div>
+    );
+  }
+
+  if (field.type === "sketch") {
+    return (
+      <div>
+        {label}
+        <SketchPad
+          value={typeof value === "string" ? value : undefined}
+          onChange={(dataUrl) => onChange(dataUrl)}
+        />
       </div>
     );
   }

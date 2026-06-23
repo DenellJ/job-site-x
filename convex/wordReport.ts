@@ -140,6 +140,7 @@ export async function buildSiteVisitDocx(
   logo: DocImage,
   mgrSig: DocImage | null,
   photos: DocPhoto[],
+  sketch: DocImage | null = null,
 ): Promise<string> {
   const date = new Date(data.submittedAt).toLocaleDateString();
   const children: (Paragraph | Table)[] = [];
@@ -182,6 +183,11 @@ export async function buildSiteVisitDocx(
 
   children.push(heading("Summary of Findings"));
   children.push(kvTable(data.fields));
+
+  if (sketch) {
+    children.push(heading("Site Sketch"));
+    children.push(imagePara(sketch, 420));
+  }
 
   children.push(heading("Site Visit Notes"));
   children.push(line(data.startNotes || "—"));

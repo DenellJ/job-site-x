@@ -50,6 +50,18 @@ export default function FormFill() {
     }
   }, [detail, seeded]);
 
+  // Debounced autosave so a camera-induced reload on mobile restores the latest
+  // state (and a freshly captured photo persists right after its upload). On
+  // remount the `seeded` guard re-seeds from the server draft, which carries
+  // resolved preview URLs.
+  const canAutosave = seeded && detail != null && detail.status !== "approved";
+  useEffect(() => {
+    if (!canAutosave) return;
+    const t = setTimeout(() => void persist().catch(() => {}), 1000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formValues, attachments, finalMedia, canAutosave]);
+
   if (detail === undefined) return <p>Loading…</p>;
   if (detail === null) return <div className="card text-err font-bold">Submission not found.</div>;
 
@@ -190,13 +202,14 @@ export default function FormFill() {
             onChange={setValue}
             attachments={attachments}
             onAttachmentsChange={setAttachments}
+            onBeforeCapture={persist}
           />
 
           {!hasPhotoSection && (
             <div className="card space-y-3">
               <h2 className="section-title">📎 Attachments (optional)</h2>
               <p className="text-sm text-rebar">Attach any photos or videos that support this form.</p>
-              <MediaGallery value={attachments} onChange={setAttachments} label="Add attachment" />
+              <MediaGallery value={attachments} onChange={setAttachments} label="Add attachment" onBeforeCapture={persist} />
             </div>
           )}
 
@@ -205,7 +218,7 @@ export default function FormFill() {
             <p className="text-sm text-rebar">
               Upload a final photo/video confirming the job is complete. Required before you can submit.
             </p>
-            <MediaGallery value={finalMedia} onChange={setFinalMedia} label="Capture completion evidence" accent />
+            <MediaGallery value={finalMedia} onChange={setFinalMedia} label="Capture completion evidence" accent onBeforeCapture={persist} />
           </div>
 
           {err && <p className="text-err text-sm font-bold">{err}</p>}
@@ -276,7 +289,7 @@ function ReadOnlyView({ detail }: { detail: SubmissionDetail }) {
       <div className="card">
         <h2 className="section-title">{detail.formLabel} — Details</h2>
         <ul className="space-y-2 text-sm">
-          {detail.formFields.map((f) => {
+          {detail.formFields.filter((f) => f.type !== "sketch").map((f) => {
             const v = detail.formValues[f.id];
             const display =
               v === undefined || v === null ? "—" : typeof v === "boolean" ? (v ? "Yes" : "No") : String(v);
@@ -289,6 +302,18 @@ function ReadOnlyView({ detail }: { detail: SubmissionDetail }) {
           })}
         </ul>
       </div>
+      {detail.formFields
+        .filter((f) => f.type === "sketch" && typeof detail.formValues[f.id] === "string")
+        .map((f) => (
+          <div className="card" key={f.id}>
+            <h2 className="section-title">✏️ {f.label}</h2>
+            <img
+              src={detail.formValues[f.id] as string}
+              alt={f.label}
+              className="w-full rounded-lg border border-stone-200 bg-white"
+            />
+          </div>
+        ))}
       {detail.attachments.length > 0 && (
         <div className="card">
           <h2 className="section-title">📎 Attachments</h2>

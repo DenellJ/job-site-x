@@ -40,6 +40,12 @@ export const getForReport = internalQuery({
       managerName = mgr?.fullName ?? mgr?.username ?? null;
     }
 
+    // The in-form site sketch is a PNG data URL stored inline in formValues; it
+    // is rendered as an image in the report, never as a text row.
+    const sketchField = sub.formFields.find((f) => f.type === "sketch");
+    const sketchValue = sketchField ? sub.formValues[sketchField.id] : undefined;
+    const sketch = typeof sketchValue === "string" && sketchValue.startsWith("data:") ? sketchValue : null;
+
     return {
       formType: sub.formType,
       label: sub.label,
@@ -50,10 +56,13 @@ export const getForReport = internalQuery({
       startNotes: sub.startNotes,
       formValues: sub.formValues,
       formFields: sub.formFields,
-      fields: sub.formFields.map((f) => ({
-        label: f.label,
-        value: display(sub.formValues[f.id]),
-      })),
+      sketch,
+      fields: sub.formFields
+        .filter((f) => f.type !== "sketch")
+        .map((f) => ({
+          label: f.label,
+          value: display(sub.formValues[f.id]),
+        })),
       managerName,
       managerSignatureId,
       startMedia: sub.startMedia.map((m) => ({ storageId: m.storageId, kind: m.kind, caption: m.caption })),

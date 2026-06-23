@@ -6,7 +6,7 @@ import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFImage } from "pd
 import type { Id } from "./_generated/dataModel";
 import { RESSCOTT_LOGO_PNG_BASE64 } from "./resscottLogo";
 import { getFormDef, isSiteVisit, type FormType } from "./formDefs";
-import { buildSiteVisitDocx, type DocPhoto } from "./wordReport";
+import { buildSiteVisitDocx, type DocImage, type DocPhoto } from "./wordReport";
 
 const PAGE_W = 595.28; // A4
 const PAGE_H = 841.89;
@@ -117,6 +117,12 @@ export const convert = action({
         if (!bytes) continue;
         photos.push({ bytes, type: imgType(bytes), caption: `Photo ${n++}: ${m.group}${m.caption ? ` — ${m.caption}` : ""}` });
       }
+      // The site sketch is an inline PNG data URL — decode it into image bytes.
+      let sketchImg: DocImage | null = null;
+      if (data.sketch) {
+        const comma = data.sketch.indexOf(",");
+        if (comma !== -1) sketchImg = { bytes: b64ToBytes(data.sketch.slice(comma + 1)), type: "png" };
+      }
       const b64 = await buildSiteVisitDocx(
         {
           formLabel: data.formLabel,
@@ -132,6 +138,7 @@ export const convert = action({
         { bytes: b64ToBytes(RESSCOTT_LOGO_PNG_BASE64), type: "png" },
         mgrSigBytes ? { bytes: mgrSigBytes, type: imgType(mgrSigBytes) } : null,
         photos,
+        sketchImg,
       );
       storageId = await ctx.storage.store(new Blob([b64ToBytes(b64)], { type: DOCX_CT }));
     } else {

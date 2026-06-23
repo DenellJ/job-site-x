@@ -1,21 +1,56 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { MediaGallery } from "../components/MediaGallery";
 import { FORM_LABELS } from "../forms";
-import type { FormType, Profile, UploadedMedia } from "../lib/types";
+import type { FormType, MediaRef, Profile, UploadedMedia } from "../lib/types";
 import { toMediaRefs } from "../lib/types";
+
+// There is no draft yet on this screen (the form type is chosen last), so we
+// mirror the start evidence to localStorage. If a mobile camera capture evicts
+// the page, the restored media keeps its storageId (the blob is already in
+// Convex storage) — only the live preview URL is lost, so it shows the
+// MediaGallery placeholder until the form is started.
+const DRAFT_KEY = "startjob:draft";
+
+function loadDraft(): { startNotes: string; startMedia: UploadedMedia[] } {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (raw) {
+      const saved = JSON.parse(raw) as { startNotes?: string; startMedia?: MediaRef[] };
+      return {
+        startNotes: saved.startNotes ?? "",
+        startMedia: (saved.startMedia ?? []).map((m) => ({ ...m, url: null })),
+      };
+    }
+  } catch {
+    /* ignore corrupt/full storage */
+  }
+  return { startNotes: "", startMedia: [] };
+}
 
 export default function StartJob({ profile }: { profile: Profile }) {
   const nav = useNavigate();
   const saveDraft = useMutation(api.submissions.saveDraft);
 
-  const [startMedia, setStartMedia] = useState<UploadedMedia[]>([]);
-  const [startNotes, setStartNotes] = useState("");
+  const [startMedia, setStartMedia] = useState<UploadedMedia[]>(() => loadDraft().startMedia);
+  const [startNotes, setStartNotes] = useState(() => loadDraft().startNotes);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  // Keep the localStorage mirror in sync with the working state.
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        DRAFT_KEY,
+        JSON.stringify({ startNotes, startMedia: toMediaRefs(startMedia) }),
+      );
+    } catch {
+      /* ignore quota errors */
+    }
+  }, [startNotes, startMedia]);
 
   const section1Done = startMedia.length > 0 && startNotes.trim().length > 0;
 
@@ -32,6 +67,11 @@ export default function StartJob({ profile }: { profile: Profile }) {
         attachments: [],
         finalMedia: [],
       });
+      try {
+        localStorage.removeItem(DRAFT_KEY);
+      } catch {
+        /* ignore */
+      }
       nav(`/forms/${id}`);
     } catch (e: any) {
       setErr(e.message ?? "Could not start the form.");

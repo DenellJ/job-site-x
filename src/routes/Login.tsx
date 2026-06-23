@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useQuery } from "convex/react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { api } from "../../convex/_generated/api";
+import { PasswordInput } from "../components/PasswordInput";
 
 export default function Login() {
   const { signIn } = useAuthActions();
@@ -37,7 +38,7 @@ export default function Login() {
         </div>
         <div>
           <label className="label">Password</label>
-          <input className="input" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
+          <PasswordInput value={password} onChange={setPassword} required autoComplete="current-password" />
         </div>
         {err && <p className="text-err text-sm font-bold">{err}</p>}
         <button className="btn-accent w-full" disabled={busy}>

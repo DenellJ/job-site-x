@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { useUpload } from "../hooks/useUpload";
+import { saveMediaToDevice } from "../lib/saveMedia";
 import type { UploadedMedia } from "../lib/types";
 
 /**
@@ -15,11 +16,15 @@ export function MediaGallery({
   value,
   onChange,
   accent = false,
+  onBeforeCapture,
 }: {
   value: UploadedMedia[];
   onChange: (next: UploadedMedia[]) => void;
   label?: string; // accepted for call-site compatibility; not rendered
   accent?: boolean;
+  /** Flush the surrounding form to its draft before the camera opens, so a
+   *  memory-eviction reload on mobile restores everything. */
+  onBeforeCapture?: () => void;
 }) {
   const photoRef = useRef<HTMLInputElement | null>(null);
   const videoRef = useRef<HTMLInputElement | null>(null);
@@ -27,6 +32,14 @@ export function MediaGallery({
   const upload = useUpload();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  // Fire the flush, then open the input. Deliberately NOT awaited: awaiting a
+  // network round-trip would break the user-gesture chain and some mobile
+  // browsers then refuse to open the camera/file picker.
+  function open(ref: React.RefObject<HTMLInputElement | null>) {
+    onBeforeCapture?.();
+    ref.current?.click();
+  }
 
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
@@ -77,6 +90,17 @@ export function MediaGallery({
               ) : (
                 <div className="w-full h-28 flex items-center justify-center text-xs text-rebar">📷 Photo</div>
               )}
+              {m.url && (
+                <button
+                  type="button"
+                  onClick={() => void saveMediaToDevice(m)}
+                  className="absolute top-1 left-1 bg-ink/80 text-concrete w-6 h-6 rounded-full text-sm leading-none"
+                  aria-label="Save to device"
+                  title="Save to device"
+                >
+                  ⤓
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => remove(i)}
@@ -95,11 +119,11 @@ export function MediaGallery({
           type="button"
           className={`${accent ? "btn-accent" : "btn-ghost"} w-full`}
           disabled={busy}
-          onClick={() => photoRef.current?.click()}
+          onClick={() => open(photoRef)}
         >
           📷 Take Photo
         </button>
-        <button type="button" className="btn-ghost w-full" disabled={busy} onClick={() => videoRef.current?.click()}>
+        <button type="button" className="btn-ghost w-full" disabled={busy} onClick={() => open(videoRef)}>
           🎥 Record Video
         </button>
       </div>
@@ -107,7 +131,7 @@ export function MediaGallery({
         type="button"
         className="w-full text-xs font-semibold uppercase tracking-wide text-rebar underline disabled:opacity-50"
         disabled={busy}
-        onClick={() => uploadRef.current?.click()}
+        onClick={() => open(uploadRef)}
       >
         {busy ? "Uploading…" : "🖼 Upload from device"}
       </button>

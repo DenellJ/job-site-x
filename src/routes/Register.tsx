@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import { PasswordInput } from "../components/PasswordInput";
 
 export default function Register() {
   const registerRequest = useAction(api.users.registerRequest);
@@ -62,7 +63,7 @@ export default function Register() {
             </div>
             <div>
               <label className="label">Password</label>
-              <input className="input" type="password" required minLength={4} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
+              <PasswordInput value={password} onChange={setPassword} required minLength={4} autoComplete="new-password" />
             </div>
             {err && <p className="text-err text-sm font-bold">{err}</p>}
             <button className="btn-accent w-full" disabled={busy}>

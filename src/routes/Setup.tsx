@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAction, useQuery } from "convex/react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { api } from "../../convex/_generated/api";
+import { PasswordInput } from "../components/PasswordInput";
 
 export default function Setup() {
   const isSetupNeeded = useQuery(api.users.isSetupNeeded);
@@ -65,14 +66,10 @@ export default function Setup() {
         <Field label="Username" value={username} onChange={setUsername} required />
         <Field label="Full name" value={fullName} onChange={setFullName} />
         <Field label="Email" type="email" value={email} onChange={setEmail} required />
-        <Field
-          label="Password"
-          type="password"
-          value={password}
-          onChange={setPassword}
-          required
-          minLength={8}
-        />
+        <div>
+          <label className="label">Password</label>
+          <PasswordInput value={password} onChange={setPassword} required minLength={8} autoComplete="new-password" />
+        </div>
         {err && <p className="text-err text-sm font-bold">{err}</p>}
         <button className="btn-accent w-full" disabled={busy}>
           {busy ? "Creating…" : "Create Admin Account"}

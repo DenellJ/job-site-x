@@ -33,6 +33,7 @@ export const formFieldValidator = v.object({
     v.literal("yesno"),
     v.literal("select"),
     v.literal("time"),
+    v.literal("sketch"),
   ),
   required: v.boolean(),
   // Only present for "select" fields.
