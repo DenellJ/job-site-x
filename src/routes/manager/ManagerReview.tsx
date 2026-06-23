@@ -129,7 +129,7 @@ export default function ManagerReview() {
       <div className="card">
         <h2 className="section-title">{detail.formLabel} — Details</h2>
         <ul className="space-y-2 text-sm">
-          {detail.formFields.map((f) => {
+          {detail.formFields.filter((f) => f.type !== "sketch").map((f) => {
             const v = detail.formValues[f.id];
             const display =
               v === undefined || v === null ? "—" : typeof v === "boolean" ? (v ? "Yes" : "No") : String(v);
@@ -142,6 +142,19 @@ export default function ManagerReview() {
           })}
         </ul>
       </div>
+
+      {detail.formFields
+        .filter((f) => f.type === "sketch" && typeof detail.formValues[f.id] === "string")
+        .map((f) => (
+          <div className="card" key={f.id}>
+            <h2 className="section-title">✏️ {f.label}</h2>
+            <img
+              src={detail.formValues[f.id] as string}
+              alt={f.label}
+              className="w-full rounded-lg border border-stone-200 bg-white"
+            />
+          </div>
+        ))}
 
       {detail.attachments.length > 0 && (
         <div className="card">
