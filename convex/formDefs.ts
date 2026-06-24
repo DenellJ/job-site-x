@@ -428,3 +428,14 @@ export function deriveLabel(type: FormType, values: Record<string, string | numb
 export function isSiteVisit(type: FormType): boolean {
   return type === "site_visit_lighting" || type === "site_visit_solar" || type === "site_visit_water_heater";
 }
+
+/**
+ * True when a submitted value is an inline drawing (sketch) data URL. The sketch
+ * pad stores its PNG inline in `formValues`; this is the only `data:image…` value
+ * a submission ever holds (photos/signatures live in storage as ids). Detecting by
+ * value — rather than the snapshotted field `type` — renders the drawing as an image
+ * even on submissions whose `formFields` snapshot predates the `sketch` field type.
+ */
+export function isSketchValue(value: string | number | boolean | undefined): value is string {
+  return typeof value === "string" && value.startsWith("data:image");
+}

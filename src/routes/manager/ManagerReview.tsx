@@ -6,6 +6,7 @@ import type { Id } from "../../../convex/_generated/dataModel";
 import { SignaturePad, type SignaturePadHandle } from "../../components/SignaturePad";
 import { MediaThumbs } from "../../components/MediaThumbs";
 import { SubmissionPill } from "../../components/StatusPill";
+import { isSketchValue } from "../../forms";
 
 export default function ManagerReview() {
   const { id } = useParams<{ id: string }>();
@@ -129,7 +130,9 @@ export default function ManagerReview() {
       <div className="card">
         <h2 className="section-title">{detail.formLabel} — Details</h2>
         <ul className="space-y-2 text-sm">
-          {detail.formFields.filter((f) => f.type !== "sketch").map((f) => {
+          {detail.formFields
+            .filter((f) => f.type !== "sketch" && !isSketchValue(detail.formValues[f.id]))
+            .map((f) => {
             const v = detail.formValues[f.id];
             const display =
               v === undefined || v === null ? "—" : typeof v === "boolean" ? (v ? "Yes" : "No") : String(v);
@@ -144,7 +147,7 @@ export default function ManagerReview() {
       </div>
 
       {detail.formFields
-        .filter((f) => f.type === "sketch" && typeof detail.formValues[f.id] === "string")
+        .filter((f) => isSketchValue(detail.formValues[f.id]))
         .map((f) => (
           <div className="card" key={f.id}>
             <h2 className="section-title">✏️ {f.label}</h2>

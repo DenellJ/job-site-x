@@ -1,6 +1,6 @@
 import { internalQuery } from "./_generated/server";
 import { requireManager } from "./helpers";
-import { FORM_LABELS } from "./formDefs";
+import { FORM_LABELS, isSketchValue } from "./formDefs";
 
 function display(value: string | number | boolean | undefined): string {
   if (value === undefined || value === null) return "";
@@ -19,7 +19,7 @@ export const getAllForExport = internalQuery({
       .sort((a, b) => b._creationTime - a._creationTime)
       .map((s) => {
         const details = s.formFields
-          .filter((f) => f.type !== "sketch")
+          .filter((f) => f.type !== "sketch" && !isSketchValue(s.formValues[f.id]))
           .map((f) => `${f.label}: ${display(s.formValues[f.id])}`)
           .join(" | ");
         return {

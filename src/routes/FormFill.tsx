@@ -8,7 +8,7 @@ import { FormRenderer } from "../components/FormRenderer";
 import { MediaGallery } from "../components/MediaGallery";
 import { MediaThumbs } from "../components/MediaThumbs";
 import { SubmissionPill } from "../components/StatusPill";
-import { getFormDef } from "../forms";
+import { getFormDef, isSketchValue } from "../forms";
 import type { FormType, UploadedMedia } from "../lib/types";
 import { toMediaRefs } from "../lib/types";
 
@@ -289,7 +289,9 @@ function ReadOnlyView({ detail }: { detail: SubmissionDetail }) {
       <div className="card">
         <h2 className="section-title">{detail.formLabel} — Details</h2>
         <ul className="space-y-2 text-sm">
-          {detail.formFields.filter((f) => f.type !== "sketch").map((f) => {
+          {detail.formFields
+            .filter((f) => f.type !== "sketch" && !isSketchValue(detail.formValues[f.id]))
+            .map((f) => {
             const v = detail.formValues[f.id];
             const display =
               v === undefined || v === null ? "—" : typeof v === "boolean" ? (v ? "Yes" : "No") : String(v);
@@ -303,7 +305,7 @@ function ReadOnlyView({ detail }: { detail: SubmissionDetail }) {
         </ul>
       </div>
       {detail.formFields
-        .filter((f) => f.type === "sketch" && typeof detail.formValues[f.id] === "string")
+        .filter((f) => isSketchValue(detail.formValues[f.id]))
         .map((f) => (
           <div className="card" key={f.id}>
             <h2 className="section-title">✏️ {f.label}</h2>

@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery } from "./_generated/server";
 import { requireProfile } from "./helpers";
-import { FORM_LABELS } from "./formDefs";
+import { FORM_LABELS, isSketchValue } from "./formDefs";
 
 /** Stringify a submitted field value for display in the report. */
 function display(value: string | number | boolean | undefined): string {
@@ -41,10 +41,10 @@ export const getForReport = internalQuery({
     }
 
     // The in-form site sketch is a PNG data URL stored inline in formValues; it
-    // is rendered as an image in the report, never as a text row.
-    const sketchField = sub.formFields.find((f) => f.type === "sketch");
-    const sketchValue = sketchField ? sub.formValues[sketchField.id] : undefined;
-    const sketch = typeof sketchValue === "string" && sketchValue.startsWith("data:") ? sketchValue : null;
+    // is rendered as an image in the report, never as a text row. Detect it by its
+    // value so a stale `formFields` snapshot can't make it leak as base64 text.
+    const sketchField = sub.formFields.find((f) => isSketchValue(sub.formValues[f.id]));
+    const sketch = sketchField ? (sub.formValues[sketchField.id] as string) : null;
 
     return {
       formType: sub.formType,
@@ -58,7 +58,7 @@ export const getForReport = internalQuery({
       formFields: sub.formFields,
       sketch,
       fields: sub.formFields
-        .filter((f) => f.type !== "sketch")
+        .filter((f) => f.type !== "sketch" && !isSketchValue(sub.formValues[f.id]))
         .map((f) => ({
           label: f.label,
           value: display(sub.formValues[f.id]),
