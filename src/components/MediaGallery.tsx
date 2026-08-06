@@ -73,7 +73,7 @@ export function MediaGallery({
       <input ref={uploadRef} type="file" accept="image/*,video/*" multiple className="hidden" onChange={onPick} />
 
       {value.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {value.map((m, i) => (
             <div
               key={i}
@@ -81,14 +81,14 @@ export function MediaGallery({
             >
               {m.kind === "video" ? (
                 m.url ? (
-                  <video src={m.url} className="w-full h-28 object-cover" controls />
+                  <video src={m.url} className="h-40 w-full object-cover sm:h-28" controls />
                 ) : (
-                  <div className="w-full h-28 flex items-center justify-center text-xs text-rebar">🎬 Video</div>
+                  <div className="flex h-40 w-full items-center justify-center text-xs text-rebar sm:h-28">🎬 Video</div>
                 )
               ) : m.url ? (
-                <img src={m.url} alt="evidence" className="w-full h-28 object-cover" />
+                <img src={m.url} alt="evidence" className="h-40 w-full object-cover sm:h-28" />
               ) : (
-                <div className="w-full h-28 flex items-center justify-center text-xs text-rebar">📷 Photo</div>
+                <div className="flex h-40 w-full items-center justify-center text-xs text-rebar sm:h-28">📷 Photo</div>
               )}
               {m.url && (
                 <button
@@ -114,7 +114,7 @@ export function MediaGallery({
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <button
           type="button"
           className={`${accent ? "btn-accent" : "btn-ghost"} w-full`}

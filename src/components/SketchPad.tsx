@@ -31,7 +31,7 @@ export function SketchPad({
       const wrap = wrapRef.current;
       if (!canvas || !wrap) return;
       canvas.width = wrap.clientWidth;
-      canvas.height = 220;
+      canvas.height = wrap.clientWidth < 360 ? 160 : 220;
       if (valueRef.current) sigRef.current?.fromDataURL(valueRef.current);
       else sigRef.current?.clear();
     }

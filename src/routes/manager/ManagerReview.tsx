@@ -3,10 +3,22 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
+import { FormRenderer } from "../../components/FormRenderer";
 import { SignaturePad, type SignaturePadHandle } from "../../components/SignaturePad";
 import { MediaThumbs } from "../../components/MediaThumbs";
 import { SubmissionPill } from "../../components/StatusPill";
-import { isSketchValue } from "../../forms";
+import { getFormDef, isSketchValue } from "../../forms";
+import type { FormType, UploadedMedia } from "../../lib/types";
+import { toMediaRefs } from "../../lib/types";
+
+type Value = string | number | boolean;
+
+function mediaArg(items: UploadedMedia[]) {
+  return toMediaRefs(items).map((media) => ({
+    ...media,
+    storageId: media.storageId as Id<"_storage">,
+  }));
+}
 
 export default function ManagerReview() {
   const { id } = useParams<{ id: string }>();
@@ -16,9 +28,14 @@ export default function ManagerReview() {
   const detail = useQuery(api.submissions.getDetail, { submissionId });
   const generateUploadUrl = useMutation(api.storage.generateUploadUrl);
   const decide = useMutation(api.approvals.decide);
+  const editSubmission = useMutation(api.submissions.editSubmission);
   const convert = useAction(api.reports.convert);
 
   const [comment, setComment] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [editValues, setEditValues] = useState<Record<string, Value>>({});
+  const [editAttachments, setEditAttachments] = useState<UploadedMedia[]>([]);
+  const [editReason, setEditReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [converting, setConverting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -73,6 +90,42 @@ export default function ManagerReview() {
     }
   }
 
+  function startEdit() {
+    if (!detail) return;
+    setEditValues(detail.formValues as Record<string, Value>);
+    setEditAttachments(detail.attachments.map((media) => ({ ...media, storageId: media.storageId as string })));
+    setEditReason("");
+    setErr(null);
+    setEditing(true);
+  }
+
+  function setEditValue(fieldId: string, value: Value | undefined) {
+    setEditValues((previous) => {
+      const next = { ...previous };
+      if (value === undefined) delete next[fieldId];
+      else next[fieldId] = value;
+      return next;
+    });
+  }
+
+  async function saveEdit() {
+    setBusy(true);
+    setErr(null);
+    try {
+      await editSubmission({
+        submissionId,
+        formValues: editValues,
+        attachments: mediaArg(editAttachments),
+        reason: editReason || null,
+      });
+      setEditing(false);
+    } catch (e: any) {
+      setErr(e.message ?? "Unable to save corrections.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function runConvert(reconvert: boolean) {
     if (!detail) return;
     if (reconvert && !window.confirm("Re-generate the report? This replaces the current document.")) return;
@@ -105,6 +158,9 @@ export default function ManagerReview() {
   const isWord = detail.formType.startsWith("site_visit");
   const docType = isWord ? "Word" : "PDF";
   const ext = isWord ? "docx" : "pdf";
+  const canEdit = detail.status === "submitted" || detail.status === "approved";
+  const formDef = getFormDef(detail.formType as FormType);
+  const fieldLabels = new Map(detail.formFields.map((field) => [field.id, field.label]));
 
   return (
     <div className="space-y-5">
@@ -127,43 +183,87 @@ export default function ManagerReview() {
         <MediaThumbs media={detail.startMedia} />
       </div>
 
-      <div className="card">
-        <h2 className="section-title">{detail.formLabel} — Details</h2>
-        <ul className="space-y-2 text-sm">
-          {detail.formFields
-            .filter((f) => f.type !== "sketch" && !isSketchValue(detail.formValues[f.id]))
-            .map((f) => {
-            const v = detail.formValues[f.id];
-            const display =
-              v === undefined || v === null ? "—" : typeof v === "boolean" ? (v ? "Yes" : "No") : String(v);
-            return (
-              <li key={f.id} className="flex justify-between gap-3 border-b border-stone-100 pb-1">
-                <span className="font-bold uppercase tracking-wide text-xs text-rebar">{f.label}</span>
-                <span className="font-semibold text-right">{display}</span>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
-
-      {detail.formFields
-        .filter((f) => isSketchValue(detail.formValues[f.id]))
-        .map((f) => (
-          <div className="card" key={f.id}>
-            <h2 className="section-title">✏️ {f.label}</h2>
-            <img
-              src={detail.formValues[f.id] as string}
-              alt={f.label}
-              className="w-full rounded-lg border border-stone-200 bg-white"
+      {editing ? (
+        <div className="space-y-4">
+          <FormRenderer
+            sections={formDef.sections}
+            values={editValues}
+            onChange={setEditValue}
+            attachments={editAttachments}
+            onAttachmentsChange={setEditAttachments}
+          />
+          <div className="card space-y-3">
+            <label className="label">Correction reason (optional)</label>
+            <textarea
+              className="input"
+              rows={3}
+              value={editReason}
+              onChange={(event) => setEditReason(event.target.value)}
             />
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <button className="btn-ghost" onClick={() => setEditing(false)} disabled={busy}>
+                Cancel
+              </button>
+              <button className="btn-accent" onClick={saveEdit} disabled={busy}>
+                {busy ? "Saving…" : "Save Corrections"}
+              </button>
+            </div>
           </div>
-        ))}
-
-      {detail.attachments.length > 0 && (
-        <div className="card">
-          <h2 className="section-title">📎 Attachments</h2>
-          <MediaThumbs media={detail.attachments} />
         </div>
+      ) : (
+        <>
+          <div className="card space-y-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <h2 className="section-title mb-0">{detail.formLabel} — Details</h2>
+              {canEdit && (
+                <button className="btn-ghost shrink-0" onClick={startEdit}>
+                  Edit Form
+                </button>
+              )}
+            </div>
+            <ul className="space-y-2 text-sm">
+              {detail.formFields
+                .filter((field) => field.type !== "sketch" && !isSketchValue(detail.formValues[field.id]))
+                .map((field) => {
+                  const value = detail.formValues[field.id];
+                  const display =
+                    value === undefined || value === null
+                      ? "—"
+                      : typeof value === "boolean"
+                        ? value
+                          ? "Yes"
+                          : "No"
+                        : String(value);
+                  return (
+                    <li key={field.id} className="flex flex-col gap-1 border-b border-stone-100 pb-1 sm:flex-row sm:justify-between sm:gap-3">
+                      <span className="min-w-0 break-words font-bold uppercase tracking-wide text-xs text-rebar">{field.label}</span>
+                      <span className="min-w-0 break-words font-semibold sm:text-right">{display}</span>
+                    </li>
+                  );
+                })}
+            </ul>
+          </div>
+
+          {detail.formFields
+            .filter((field) => isSketchValue(detail.formValues[field.id]))
+            .map((field) => (
+              <div className="card" key={field.id}>
+                <h2 className="section-title">✏️ {field.label}</h2>
+                <img
+                  src={detail.formValues[field.id] as string}
+                  alt={field.label}
+                  className="w-full rounded-lg border border-stone-200 bg-white"
+                />
+              </div>
+            ))}
+
+          {detail.attachments.length > 0 && (
+            <div className="card">
+              <h2 className="section-title">📎 Attachments</h2>
+              <MediaThumbs media={detail.attachments} />
+            </div>
+          )}
+        </>
       )}
 
       <div className="card">
@@ -171,7 +271,7 @@ export default function ManagerReview() {
         <MediaThumbs media={detail.finalMedia} />
       </div>
 
-      {pending && (
+      {pending && !editing && (
         <>
           <div className="card">
             <h2 className="section-title">✍ Manager Signature</h2>
@@ -181,7 +281,7 @@ export default function ManagerReview() {
             <label className="label">Comment (required to reject)</label>
             <textarea className="input" rows={3} value={comment} onChange={(e) => setComment(e.target.value)} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <button onClick={reject} className="btn-err" disabled={busy}>
               ✕ Reject
             </button>
@@ -201,9 +301,11 @@ export default function ManagerReview() {
             {detail.reportGeneratedAt ? ` · ${new Date(detail.reportGeneratedAt).toLocaleString()}` : ""}
           </p>
         ) : (
-          <p className="text-sm text-warn font-bold">Not yet generated.</p>
+          <p className="text-sm text-warn font-bold">
+            {detail.edits.length > 0 ? "A correction requires a new report." : "Not yet generated."}
+          </p>
         )}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {detail.reportVersion === 0 ? (
             <button onClick={() => runConvert(false)} className="btn-accent col-span-2" disabled={converting}>
               {converting ? "Generating…" : `Convert to ${docType}`}
@@ -239,6 +341,29 @@ export default function ManagerReview() {
                 {h.comment && <div className="text-slate-600">{h.comment}</div>}
               </li>
             ))}
+          </ul>
+        </div>
+      )}
+
+      {detail.edits.length > 0 && (
+        <div className="card">
+          <h2 className="section-title">Correction History</h2>
+          <ul className="space-y-2 text-sm">
+            {detail.edits.map((edit) => {
+              const changes = [
+                ...edit.fieldIds.map((fieldId) => fieldLabels.get(fieldId) ?? fieldId),
+                ...(edit.attachmentsChanged ? ["Attachments"] : []),
+              ];
+              return (
+                <li key={edit.id} className="border-l-4 border-slate-200 pl-3 py-1">
+                  <div className="font-semibold">
+                    {edit.editedByUsername} · {new Date(edit.editedAt).toLocaleString()}
+                  </div>
+                  <div className="break-words text-rebar">{changes.join(", ")}</div>
+                  {edit.reason && <div className="break-words text-slate-600">{edit.reason}</div>}
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}

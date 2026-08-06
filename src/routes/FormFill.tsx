@@ -226,7 +226,7 @@ export default function FormFill() {
 
           {isDraft && (
             <>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <button onClick={onSave} className="btn-ghost" disabled={busy}>
                   💾 Save Draft
                 </button>
@@ -258,7 +258,7 @@ export default function FormFill() {
 
           {isRejected && (
             <>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <button onClick={onSave} className="btn-ghost" disabled={busy}>
                   💾 Save
                 </button>
@@ -296,9 +296,9 @@ function ReadOnlyView({ detail }: { detail: SubmissionDetail }) {
             const display =
               v === undefined || v === null ? "—" : typeof v === "boolean" ? (v ? "Yes" : "No") : String(v);
             return (
-              <li key={f.id} className="flex justify-between gap-3 border-b border-stone-100 pb-1">
-                <span className="font-bold uppercase tracking-wide text-xs text-rebar">{f.label}</span>
-                <span className="font-semibold text-right">{display}</span>
+              <li key={f.id} className="flex flex-col gap-1 border-b border-stone-100 pb-1 sm:flex-row sm:justify-between sm:gap-3">
+                <span className="min-w-0 break-words font-bold uppercase tracking-wide text-xs text-rebar">{f.label}</span>
+                <span className="min-w-0 break-words font-semibold sm:text-right">{display}</span>
               </li>
             );
           })}

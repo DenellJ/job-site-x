@@ -28,9 +28,11 @@ export const SignaturePad = forwardRef<SignaturePadHandle>((_props, ref) => {
       const canvas = sigRef.current?.getCanvas();
       const wrap = wrapRef.current;
       if (!canvas || !wrap) return;
+      const value = sigRef.current?.isEmpty() ? null : sigRef.current?.toDataURL("image/png");
       canvas.width = wrap.clientWidth;
-      canvas.height = 180;
-      sigRef.current?.clear();
+      canvas.height = wrap.clientWidth < 360 ? 140 : 180;
+      if (value) sigRef.current?.fromDataURL(value);
+      else sigRef.current?.clear();
     }
     resize();
     window.addEventListener("resize", resize);

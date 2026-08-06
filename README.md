@@ -49,16 +49,17 @@ Open http://127.0.0.1:5173 and sign in as `manager@test.com` / `1234`.
 3. Manager → **Users** → **Pending Requests** → grant a couple of forms → **Approve**. (`emp1` gets a realtime "approved" toast.)
 4. As `emp1`: **Start a Job** — capture a start photo/video + notes (Section 1 gate), then pick a form.
 5. Fill the form → **Save Draft** → reopen from **My Forms** → confirm **Submit is locked** until you add **final completion evidence**, then submit. Manager gets a realtime toast.
-6. Manager → **Dashboard** → the form's folder shows the submission flagged **needs converting** → **Review** → draw a signature → **Approve**.
-7. **Convert to PDF Report** → **Download PDF**. **Convert Again** prompts for confirmation; **Download PDF** re-downloads.
-8. Manager → **Dashboard** → **Export Excel** downloads `resscott-submissions.xlsx`.
+6. Manager → **Dashboard** → the form's folder shows the submission flagged **needs converting** → **Review**. Managers and admins can use **Edit Form** to correct a submitted or approved form; each correction is recorded and the original submitter is notified. An approved form remains approved, but any existing report is removed and must be regenerated.
+7. Draw a signature → **Approve** for a pending submission.
+8. **Convert to PDF Report** → **Download PDF**. **Convert Again** prompts for confirmation; **Download PDF** re-downloads.
+9. Manager → **Dashboard** → **Export Excel** downloads `resscott-submissions.xlsx`.
 
 ## Architecture notes
 
 - **Onboarding & access** (`convex/users.ts`): public `registerRequest` creates a *pending* personnel profile and notifies managers; `approveUser`/`declineUser` gate access and set per-form `allowedForms`. The app shell shows a "pending/declined" screen until approved. No account self-activates.
 - **One submission = Section 1 + Section 2 + final evidence** (`convex/schema.ts → formSubmissions`). The form field definitions are snapshotted onto each submission so historical records render faithfully even if a form changes.
 - **Gates** (`convex/submissions.ts → submit`): start media + notes, required Section-2 fields, and final completion media are all enforced server-side.
-- **Approval** (`convex/approvals.ts → decide`): one mutation writes the approval (with signature), flips the status, and notifies the submitter.
+- **Approval and corrections** (`convex/approvals.ts → decide`, `convex/submissions.ts → editSubmission`): staff can approve/reject pending work and correct submitted or approved field values/in-form attachments. Corrections are audited, notify the submitter, preserve approval status, and invalidate the generated report.
 - **Report PDF** (`convex/reports.ts`, Node runtime): pdf-lib builds the Resscott-letterhead Inspection Report (form data + embedded photo evidence) and stores it; `reportVersion` tracks convert/re-convert.
 - **Excel export** (`convex/exportExcel.ts`, Node runtime): xlsx builds a workbook of all submissions and returns a download URL.
 - **Notifications** are a reactive `useQuery(api.notifications.listMine)` over the `notifications` table.

@@ -50,7 +50,7 @@ function FormAccessPicker({ value, onChange }: { value: FormType[]; onChange: (n
     onChange(value.includes(t) ? value.filter((x) => x !== t) : [...value, t]);
   }
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
       {FORM_TYPES.map((t) => (
         <button
           type="button"
@@ -111,11 +111,11 @@ function PendingRow({
         <FormAccessPicker value={forms} onChange={setForms} />
       </div>
       {err && <p className="text-err text-sm font-bold">{err}</p>}
-      <div className="grid grid-cols-2 gap-2">
-        <button className="btn-err !min-h-[44px]" onClick={decline} disabled={busy}>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <button className="btn-err" onClick={decline} disabled={busy}>
           Decline
         </button>
-        <button className="btn-ok !min-h-[44px]" onClick={approve} disabled={busy}>
+        <button className="btn-ok" onClick={approve} disabled={busy}>
           {busy ? "…" : "Approve"}
         </button>
       </div>

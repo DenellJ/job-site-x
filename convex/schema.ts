@@ -72,6 +72,15 @@ export default defineSchema({
     signatureId: v.union(v.id("_storage"), v.null()),
   }).index("by_submission", ["submissionId"]),
 
+  formEdits: defineTable({
+    submissionId: v.id("formSubmissions"),
+    editedBy: v.id("users"),
+    editedByUsername: v.string(),
+    fieldIds: v.array(v.string()),
+    attachmentsChanged: v.boolean(),
+    reason: v.union(v.string(), v.null()),
+  }).index("by_submission", ["submissionId"]),
+
   // Per-user notification inbox (reactive).
   notifications: defineTable({
     userId: v.id("users"),

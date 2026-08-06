@@ -12,6 +12,62 @@ import { formTypeValidator, formValueValidator, mediaValidator } from "./validat
 import { deriveLabel, flatFields, FORM_LABELS } from "./formDefs";
 import type { Doc } from "./_generated/dataModel";
 
+type FormValue = string | number | boolean;
+
+function isEmptyValue(value: FormValue | undefined) {
+  return value === undefined || (typeof value === "string" && value.trim().length === 0);
+}
+
+/** Validate values against the definition snapshotted on the submission. */
+function validateFormValues(formFields: Doc<"formSubmissions">["formFields"], formValues: Record<string, FormValue>) {
+  const fieldsById = new Map(formFields.map((field) => [field.id, field]));
+
+  for (const [fieldId, value] of Object.entries(formValues)) {
+    const field = fieldsById.get(fieldId);
+    if (!field) throw new Error(`"${fieldId}" is not a field on this form.`);
+
+    if (field.type === "number" && (typeof value !== "number" || !Number.isFinite(value))) {
+      throw new Error(`"${field.label}" must be a number.`);
+    }
+    if (field.type === "yesno" && typeof value !== "boolean") {
+      throw new Error(`"${field.label}" must be Yes or No.`);
+    }
+    if (
+      (field.type === "text" || field.type === "textarea" || field.type === "time" || field.type === "select") &&
+      typeof value !== "string"
+    ) {
+      throw new Error(`"${field.label}" has an invalid value.`);
+    }
+    if (field.type === "select" && value !== "" && !field.options?.includes(value as string)) {
+      throw new Error(`"${field.label}" has an invalid selection.`);
+    }
+    if (field.type === "sketch" && (typeof value !== "string" || !value.startsWith("data:image"))) {
+      throw new Error(`"${field.label}" must be a sketch image.`);
+    }
+  }
+
+  for (const field of formFields) {
+    if (field.required && isEmptyValue(formValues[field.id])) {
+      throw new Error(`"${field.label}" is required.`);
+    }
+  }
+}
+
+function attachmentsChanged(
+  previous: Doc<"formSubmissions">["attachments"],
+  next: Doc<"formSubmissions">["attachments"],
+) {
+  return (
+    previous.length !== next.length ||
+    previous.some(
+      (media, index) =>
+        media.storageId !== next[index].storageId ||
+        media.kind !== next[index].kind ||
+        media.caption !== next[index].caption,
+    )
+  );
+}
+
 /** Resolve storage URLs for a media array (for display). */
 async function resolveMedia(ctx: QueryCtx, media: Doc<"formSubmissions">["startMedia"]) {
   return Promise.all(
@@ -105,16 +161,7 @@ export const submit = mutation({
     if (!sub.startNotes.trim()) {
       throw new Error("Section 1: start notes are required.");
     }
-    for (const field of sub.formFields) {
-      if (field.required) {
-        const value = sub.formValues[field.id];
-        const empty =
-          value === undefined ||
-          value === null ||
-          (typeof value === "string" && value.trim().length === 0);
-        if (empty) throw new Error(`"${field.label}" is required.`);
-      }
-    }
+    validateFormValues(sub.formFields, sub.formValues);
     if (sub.finalMedia.length === 0) {
       throw new Error("Upload a final completion photo or video before submitting.");
     }
@@ -130,6 +177,55 @@ export const submit = mutation({
         read: false,
       });
     }
+  },
+});
+
+export const editSubmission = mutation({
+  args: {
+    submissionId: v.id("formSubmissions"),
+    formValues: v.record(v.string(), formValueValidator),
+    attachments: v.array(mediaValidator),
+    reason: v.union(v.string(), v.null()),
+  },
+  handler: async (ctx, args) => {
+    const { userId, profile } = await requireManager(ctx);
+    const sub = await ctx.db.get(args.submissionId);
+    if (sub === null) throw new Error("Submission not found.");
+    if (sub.status !== "submitted" && sub.status !== "approved") {
+      throw new Error("Only submitted or approved forms can be corrected by staff.");
+    }
+
+    validateFormValues(sub.formFields, args.formValues);
+    const fieldIds = sub.formFields
+      .filter((field) => sub.formValues[field.id] !== args.formValues[field.id])
+      .map((field) => field.id);
+    const mediaChanged = attachmentsChanged(sub.attachments, args.attachments);
+    if (fieldIds.length === 0 && !mediaChanged) return false;
+
+    if (sub.reportStorageId) await ctx.storage.delete(sub.reportStorageId);
+    await ctx.db.patch(args.submissionId, {
+      formValues: args.formValues,
+      attachments: args.attachments,
+      label: deriveLabel(sub.formType, args.formValues),
+      reportStorageId: null,
+      reportGeneratedAt: null,
+      reportVersion: 0,
+    });
+    await ctx.db.insert("formEdits", {
+      submissionId: args.submissionId,
+      editedBy: userId,
+      editedByUsername: profile.username,
+      fieldIds,
+      attachmentsChanged: mediaChanged,
+      reason: args.reason?.trim() || null,
+    });
+    await ctx.db.insert("notifications", {
+      userId: sub.submittedBy,
+      message: `${profile.username} corrected your ${FORM_LABELS[sub.formType]} submission.${args.reason?.trim() ? ` ${args.reason.trim()}` : ""}`,
+      href: "/mine",
+      read: false,
+    });
+    return true;
   },
 });
 
@@ -209,6 +305,12 @@ export const getDetail = query({
         .withIndex("by_submission", (q) => q.eq("submissionId", submissionId))
         .collect()
     ).sort((a, b) => b._creationTime - a._creationTime);
+    const edits = (
+      await ctx.db
+        .query("formEdits")
+        .withIndex("by_submission", (q) => q.eq("submissionId", submissionId))
+        .collect()
+    ).sort((a, b) => b._creationTime - a._creationTime);
 
     return {
       id: sub._id,
@@ -232,6 +334,14 @@ export const getDetail = query({
         decision: h.decision,
         decidedAt: h._creationTime,
         comment: h.comment,
+      })),
+      edits: edits.map((edit) => ({
+        id: edit._id,
+        editedByUsername: edit.editedByUsername,
+        fieldIds: edit.fieldIds,
+        attachmentsChanged: edit.attachmentsChanged,
+        reason: edit.reason,
+        editedAt: edit._creationTime,
       })),
     };
   },
