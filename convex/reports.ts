@@ -5,7 +5,8 @@ import { internal } from "./_generated/api";
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFImage } from "pdf-lib";
 import type { Id } from "./_generated/dataModel";
 import { RESSCOTT_LOGO_PNG_BASE64 } from "./resscottLogo";
-import { getFormDef, isSiteVisit, type FormType } from "./formDefs";
+import { getFormDef, isSiteVisit, type FormType, type FormValue } from "./formDefs";
+import { displayFormValue } from "./formValues";
 import { buildSiteVisitDocx, type DocImage, type DocPhoto } from "./wordReport";
 
 const PAGE_W = 595.28; // A4
@@ -73,9 +74,10 @@ function b64ToBytes(b64: string): Uint8Array<ArrayBuffer> {
 function imgType(bytes: Uint8Array): "png" | "jpg" {
   return bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47 ? "png" : "jpg";
 }
-function display(v: string | number | boolean | undefined): string {
+function display(v: FormValue | undefined): string {
   if (v === undefined || v === null) return "—";
   if (typeof v === "boolean") return v ? "Yes" : "No";
+  if (Array.isArray(v)) return displayFormValue(v);
   const s = String(v);
   return s.trim() === "" ? "—" : s;
 }
@@ -86,7 +88,7 @@ export const convert = action({
     const data = await ctx.runQuery(internal.reportData.getForReport, { submissionId });
     const formType = data.formType as FormType;
     const def = getFormDef(formType);
-    const values = data.formValues as Record<string, string | number | boolean>;
+    const values = data.formValues as Record<string, FormValue>;
 
     const fetchBytes = async (storageId: string): Promise<Uint8Array | null> => {
       const blob = await ctx.storage.get(storageId as Id<"_storage">);
@@ -131,7 +133,7 @@ export const convert = action({
           client: (values["client_name"] as string) || data.label,
           location: (values["client_location"] as string) || "—",
           startNotes: data.startNotes,
-          recommendations: (values["additional_notes"] as string) || data.startNotes || "—",
+          recommendations: (values["recommendations"] as string) || "—",
           fields: data.fields,
           managerName: data.managerName,
         },

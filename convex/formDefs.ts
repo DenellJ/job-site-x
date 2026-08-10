@@ -17,7 +17,17 @@ export type FormType =
   | "job_ticket"
   | "new_job_task";
 
-export type FormFieldType = "text" | "textarea" | "number" | "yesno" | "select" | "time" | "sketch";
+export type FormFieldType = "text" | "textarea" | "number" | "yesno" | "select" | "time" | "sketch" | "load_table";
+
+export interface LoadScheduleRow {
+  equipment: string;
+  quantity: number | null;
+  totalWatts: number | null;
+  hoursPerDay: number | null;
+  wattHoursPerDay: number | null;
+}
+
+export type FormValue = string | number | boolean | LoadScheduleRow[];
 
 export interface FormFieldDef {
   id: string;
@@ -108,10 +118,15 @@ export const FORM_DEFS: Record<FormType, FormDef> = {
         fields: [
           { id: "ttec_access", label: "Do you have T&TEC access?", type: "textarea", required: false },
           {
-            id: "offgrid_loads",
-            label:
-              "Completely off-grid or partial? List loads to be solar-powered (equipment, qty, total watts, hours/day, Wh/day)",
+            id: "offgrid_choice",
+            label: "Completely off-grid, or only some items on solar with the remainder on T&TEC?",
             type: "textarea",
+            required: false,
+          },
+          {
+            id: "solar_loads",
+            label: "Loads to be solar powered",
+            type: "load_table",
             required: false,
           },
           { id: "budget", label: "Client's budget", type: "text", required: false },
@@ -133,6 +148,7 @@ export const FORM_DEFS: Record<FormType, FormDef> = {
             required: false,
           },
           { id: "additional_notes", label: "Additional notes", type: "textarea", required: false },
+          { id: "recommendations", label: "Conclusion and recommendations", type: "textarea", required: false },
         ],
       },
     ],
@@ -164,6 +180,7 @@ export const FORM_DEFS: Record<FormType, FormDef> = {
           { id: "site_sketch", label: "Sketch of the roof / plumbing layout", type: "sketch", required: false },
           { id: "closest_220v", label: "Where is the closest 220V plug?", type: "textarea", required: false },
           { id: "additional_notes", label: "Additional notes", type: "textarea", required: false },
+          { id: "recommendations", label: "Conclusion and recommendations", type: "textarea", required: false },
         ],
       },
     ],
@@ -205,6 +222,7 @@ export const FORM_DEFS: Record<FormType, FormDef> = {
             type: "textarea",
             required: false,
           },
+          { id: "recommendations", label: "Conclusion and recommendations", type: "textarea", required: false },
         ],
       },
     ],
@@ -218,6 +236,8 @@ export const FORM_DEFS: Record<FormType, FormDef> = {
       {
         title: "Equipment Details",
         fields: [
+          { id: "job_number", label: "Job number", type: "text", required: false },
+          { id: "certificate_number", label: "Certificate number", type: "text", required: false },
           { id: "occupier", label: "Occupier", type: "text", required: true },
           { id: "address", label: "Address", type: "textarea", required: false },
           { id: "description", label: "Description of solar system", type: "text", required: false },
@@ -304,6 +324,7 @@ export const FORM_DEFS: Record<FormType, FormDef> = {
       {
         title: "During Inspection / Repair",
         fields: [
+          { id: "inspection_comments", label: "Inspection comments", type: "textarea", required: false },
           { id: "issues_observed", label: "What issues were observed? (if any)", type: "textarea", required: false },
           { id: "notice_defects", label: "Notice of defects during repair / service (if any)", type: "textarea", required: false },
           { id: "repairs_done", label: "Repairs / service done — description of parts repaired", type: "textarea", required: false },
@@ -318,6 +339,8 @@ export const FORM_DEFS: Record<FormType, FormDef> = {
       {
         title: "Outcome",
         fields: [
+          { id: "benefits", label: "Benefits to this service", type: "textarea", required: false },
+          { id: "limitations", label: "Limitations", type: "textarea", required: false },
           { id: "recommendations", label: "Recommendations", type: "textarea", required: false },
           { id: "next_service_due", label: "Next service examination due", type: "text", required: false },
         ],
@@ -414,8 +437,33 @@ export function flatFields(type: FormType): FormFieldDef[] {
   return FORM_DEFS[type].sections.flatMap((s) => s.fields);
 }
 
+/** Render a submission using its snapshotted fields while retaining current
+ * media sections. This keeps older drafts editable after definitions change. */
+export function sectionsForSnapshot(type: FormType, snapshot: FormFieldDef[]): FormSection[] {
+  const snapshotById = new Map(snapshot.map((field) => [field.id, field]));
+  const currentIds = new Set<string>();
+  const sections = FORM_DEFS[type].sections.map((section) => ({
+    ...section,
+    fields: section.fields
+      .filter((field) => snapshotById.has(field.id))
+      .map((field) => {
+        currentIds.add(field.id);
+        return snapshotById.get(field.id)!;
+      }),
+  }));
+  const legacy = snapshot.filter((field) => !currentIds.has(field.id));
+  if (legacy.length > 0) {
+    sections.push({
+      title: "Legacy fields",
+      note: "Retained from the form version used when this submission was created.",
+      fields: legacy,
+    });
+  }
+  return sections;
+}
+
 /** Human-friendly label for a submission, derived from its key field. */
-export function deriveLabel(type: FormType, values: Record<string, string | number | boolean>): string {
+export function deriveLabel(type: FormType, values: Record<string, FormValue>): string {
   const candidates = ["client_name", "occupier", "client_site", "task_title", "conductor"];
   for (const key of candidates) {
     const v = values[key];
@@ -436,6 +484,6 @@ export function isSiteVisit(type: FormType): boolean {
  * value — rather than the snapshotted field `type` — renders the drawing as an image
  * even on submissions whose `formFields` snapshot predates the `sketch` field type.
  */
-export function isSketchValue(value: string | number | boolean | undefined): value is string {
+export function isSketchValue(value: FormValue | undefined): value is string {
   return typeof value === "string" && value.startsWith("data:image");
 }

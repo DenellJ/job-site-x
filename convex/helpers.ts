@@ -47,11 +47,11 @@ export async function getManagerIds(ctx: QueryCtx): Promise<Array<import("./_gen
   const managers = await ctx.db
     .query("profiles")
     .withIndex("by_role", (q) => q.eq("role", "manager"))
-    .collect();
+    .take(100);
   const admins = await ctx.db
     .query("profiles")
     .withIndex("by_role", (q) => q.eq("role", "admin"))
-    .collect();
+    .take(100);
   return [...managers, ...admins].map((p) => p.userId);
 }
 

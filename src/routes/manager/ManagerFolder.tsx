@@ -1,5 +1,5 @@
 import { Link, useParams } from "react-router-dom";
-import { useQuery } from "convex/react";
+import { usePaginatedQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { SubmissionPill } from "../../components/StatusPill";
 import { FORM_LABELS } from "../../forms";
@@ -8,8 +8,11 @@ import type { FormType } from "../../lib/types";
 export default function ManagerFolder() {
   const { formType } = useParams<{ formType: string }>();
   const ft = formType as FormType;
-  const rows = useQuery(api.submissions.listForManager);
-  const items = (rows ?? []).filter((r) => r.formType === ft);
+  const { results: items, status, loadMore } = usePaginatedQuery(
+    api.submissions.listForManager,
+    { formType: ft },
+    { initialNumItems: 20 },
+  );
 
   return (
     <div className="space-y-5">
@@ -22,14 +25,14 @@ export default function ManagerFolder() {
         </h1>
       </div>
 
-      {rows === undefined ? (
+      {status === "LoadingFirstPage" ? (
         <p>Loading…</p>
       ) : items.length === 0 ? (
         <div className="card text-center text-rebar">No submissions in this folder.</div>
       ) : (
         <ul className="space-y-3">
           {items.map((r) => (
-            <li key={r.id} className="card-job flex items-center gap-3">
+            <li key={r.id} className="card-job flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
               <div className="flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-black uppercase tracking-tight">{r.label}</span>
@@ -46,13 +49,14 @@ export default function ManagerFolder() {
                   {r.submitterUsername} · {new Date(r.submittedAt).toLocaleString()}
                 </div>
               </div>
-              <Link to={`/manager/submissions/${r.id}`} className="btn-primary !min-h-[44px] !py-2 text-sm">
+              <Link to={`/manager/submissions/${r.id}`} className="btn-primary !min-h-[44px] !py-2 text-sm sm:shrink-0">
                 Review →
               </Link>
             </li>
           ))}
         </ul>
       )}
+      {status === "CanLoadMore" && <button className="btn-ghost w-full" onClick={() => loadMore(20)}>Load more</button>}
     </div>
   );
 }

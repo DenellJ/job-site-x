@@ -1,12 +1,12 @@
 import { Link } from "react-router-dom";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation, usePaginatedQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { SubmissionPill } from "../components/StatusPill";
 import { FORM_LABELS } from "../forms";
 
 export default function MyDrafts() {
-  const rows = useQuery(api.submissions.listMine);
+  const { results: rows, status, loadMore } = usePaginatedQuery(api.submissions.listMine, {}, { initialNumItems: 20 });
   const deleteDraft = useMutation(api.submissions.deleteDraft);
 
   async function handleDelete(id: string) {
@@ -26,14 +26,14 @@ export default function MyDrafts() {
         </Link>
       </div>
 
-      {rows === undefined ? (
+      {status === "LoadingFirstPage" ? (
         <p>Loading…</p>
       ) : rows.length === 0 ? (
         <div className="card text-center text-rebar">No forms yet. Start a job to begin.</div>
       ) : (
         <ul className="space-y-3">
           {rows.map((r) => (
-            <li key={r.id} className="card-job flex items-center gap-3">
+            <li key={r.id} className="card-job flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
               <div className="flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-black uppercase tracking-tight">{FORM_LABELS[r.formType]}</span>
@@ -43,7 +43,7 @@ export default function MyDrafts() {
                   {r.label} · {new Date(r.updatedAt).toLocaleString()}
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center justify-end gap-2">
                 {r.status === "draft" && (
                   <button
                     onClick={() => handleDelete(r.id)}
@@ -61,6 +61,7 @@ export default function MyDrafts() {
           ))}
         </ul>
       )}
+      {status === "CanLoadMore" && <button className="btn-ghost w-full" onClick={() => loadMore(20)}>Load more</button>}
     </div>
   );
 }

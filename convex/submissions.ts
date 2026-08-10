@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { paginationOptsValidator } from "convex/server";
 import { mutation, query } from "./_generated/server";
 import type { QueryCtx } from "./_generated/server";
 import {
@@ -10,13 +11,9 @@ import {
 } from "./helpers";
 import { formTypeValidator, formValueValidator, mediaValidator } from "./validators";
 import { deriveLabel, flatFields, FORM_LABELS } from "./formDefs";
+import type { FormValue } from "./formDefs";
+import { isEmptyFormValue, MAX_LOAD_ROWS } from "./formValues";
 import type { Doc } from "./_generated/dataModel";
-
-type FormValue = string | number | boolean;
-
-function isEmptyValue(value: FormValue | undefined) {
-  return value === undefined || (typeof value === "string" && value.trim().length === 0);
-}
 
 /** Validate values against the definition snapshotted on the submission. */
 function validateFormValues(formFields: Doc<"formSubmissions">["formFields"], formValues: Record<string, FormValue>) {
@@ -44,10 +41,25 @@ function validateFormValues(formFields: Doc<"formSubmissions">["formFields"], fo
     if (field.type === "sketch" && (typeof value !== "string" || !value.startsWith("data:image"))) {
       throw new Error(`"${field.label}" must be a sketch image.`);
     }
+    if (field.type === "load_table") {
+      if (!Array.isArray(value) || value.length > MAX_LOAD_ROWS) {
+        throw new Error(`"${field.label}" must contain no more than ${MAX_LOAD_ROWS} rows.`);
+      }
+      for (const row of value) {
+        if (!row || typeof row !== "object" || typeof row.equipment !== "string") {
+          throw new Error(`"${field.label}" contains an invalid row.`);
+        }
+        for (const numberValue of [row.quantity, row.totalWatts, row.hoursPerDay, row.wattHoursPerDay]) {
+          if (numberValue !== null && (typeof numberValue !== "number" || !Number.isFinite(numberValue) || numberValue < 0)) {
+            throw new Error(`"${field.label}" contains an invalid number.`);
+          }
+        }
+      }
+    }
   }
 
   for (const field of formFields) {
-    if (field.required && isEmptyValue(formValues[field.id])) {
+    if (field.required && isEmptyFormValue(formValues[field.id])) {
       throw new Error(`"${field.label}" is required.`);
     }
   }
@@ -197,7 +209,7 @@ export const editSubmission = mutation({
 
     validateFormValues(sub.formFields, args.formValues);
     const fieldIds = sub.formFields
-      .filter((field) => sub.formValues[field.id] !== args.formValues[field.id])
+      .filter((field) => JSON.stringify(sub.formValues[field.id]) !== JSON.stringify(args.formValues[field.id]))
       .map((field) => field.id);
     const mediaChanged = attachmentsChanged(sub.attachments, args.attachments);
     if (fieldIds.length === 0 && !mediaChanged) return false;
@@ -247,34 +259,40 @@ export const deleteDraft = mutation({
 
 /** The caller's own submissions (drafts + submitted/approved/rejected), newest first. */
 export const listMine = query({
-  args: {},
-  handler: async (ctx) => {
+  args: { paginationOpts: paginationOptsValidator },
+  handler: async (ctx, { paginationOpts }) => {
     const { userId } = await requireProfile(ctx);
-    const subs = await ctx.db
+    const result = await ctx.db
       .query("formSubmissions")
       .withIndex("by_submitter", (q) => q.eq("submittedBy", userId))
-      .collect();
-    return subs
-      .map((s) => ({
+      .order("desc")
+      .paginate(paginationOpts);
+    return {
+      ...result,
+      page: result.page.map((s) => ({
         id: s._id,
         formType: s.formType,
         label: s.label,
         status: s.status,
         updatedAt: s._creationTime,
-      }))
-      .sort((a, b) => b.updatedAt - a.updatedAt);
+      })),
+    };
   },
 });
 
-/** All non-draft submissions for the manager dashboard/folders (reactive). */
+/** Paginated non-draft submissions for one manager folder. */
 export const listForManager = query({
-  args: {},
-  handler: async (ctx) => {
+  args: { formType: formTypeValidator, paginationOpts: paginationOptsValidator },
+  handler: async (ctx, { formType, paginationOpts }) => {
     await requireManager(ctx);
-    const subs = await ctx.db.query("formSubmissions").collect();
-    return subs
-      .filter((s) => s.status !== "draft")
-      .map((s) => ({
+    const result = await ctx.db
+      .query("formSubmissions")
+      .withIndex("by_formType", (q) => q.eq("formType", formType))
+      .order("desc")
+      .paginate(paginationOpts);
+    return {
+      ...result,
+      page: result.page.filter((s) => s.status !== "draft").map((s) => ({
         id: s._id,
         formType: s.formType,
         label: s.label,
@@ -283,8 +301,26 @@ export const listForManager = query({
         submittedAt: s._creationTime,
         reportVersion: s.reportVersion,
         reportGeneratedAt: s.reportGeneratedAt,
-      }))
-      .sort((a, b) => b.submittedAt - a.submittedAt);
+      })),
+    };
+  },
+});
+
+/** Bounded folder summary for the dashboard. */
+export const managerSummary = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireManager(ctx);
+    const rows = await ctx.db.query("formSubmissions").order("desc").take(1000);
+    const summary: Record<string, { count: number; needsConverting: number }> = {};
+    for (const row of rows) {
+      if (row.status === "draft") continue;
+      const item = summary[row.formType] ?? { count: 0, needsConverting: 0 };
+      item.count += 1;
+      if (row.reportVersion === 0) item.needsConverting += 1;
+      summary[row.formType] = item;
+    }
+    return summary;
   },
 });
 
@@ -303,13 +339,15 @@ export const getDetail = query({
       await ctx.db
         .query("approvals")
         .withIndex("by_submission", (q) => q.eq("submissionId", submissionId))
-        .collect()
+        .order("desc")
+        .take(100)
     ).sort((a, b) => b._creationTime - a._creationTime);
     const edits = (
       await ctx.db
         .query("formEdits")
         .withIndex("by_submission", (q) => q.eq("submissionId", submissionId))
-        .collect()
+        .order("desc")
+        .take(100)
     ).sort((a, b) => b._creationTime - a._creationTime);
 
     return {

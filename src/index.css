@@ -21,11 +21,11 @@ body {
   .btn-ghost   { @apply btn bg-white text-ink border border-stone-300 hover:bg-stone-50; }
 
   .card {
-    @apply bg-white border border-stone-200 rounded-xl p-5 shadow-soft;
+    @apply bg-white border border-stone-200 rounded-xl p-4 shadow-soft sm:p-5;
   }
 
   .card-job {
-    @apply bg-white border border-stone-200 rounded-xl p-5 shadow-soft
+    @apply bg-white border border-stone-200 rounded-xl p-4 shadow-soft sm:p-5
            border-l-4 border-l-hi hover:border-l-hi2 hover:shadow-md transition;
   }
 
@@ -35,7 +35,7 @@ body {
   }
 
   .label {
-    @apply block break-words text-xs font-semibold uppercase tracking-wide text-rebar mb-1;
+    @apply block break-words text-xs font-semibold uppercase tracking-normal text-rebar mb-1 sm:tracking-wide;
   }
 
   .pill {

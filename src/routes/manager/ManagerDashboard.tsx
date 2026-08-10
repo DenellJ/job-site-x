@@ -5,7 +5,7 @@ import { api } from "../../../convex/_generated/api";
 import { FORM_LABELS, FORM_TYPES } from "../../forms";
 
 export default function ManagerDashboard() {
-  const rows = useQuery(api.submissions.listForManager);
+  const summary = useQuery(api.submissions.managerSummary);
   const exportDb = useAction(api.exportExcel.exportDatabase);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -47,24 +47,23 @@ export default function ManagerDashboard() {
 
       {err && <p className="text-err text-sm font-bold">{err}</p>}
 
-      {rows === undefined ? (
+      {summary === undefined ? (
         <p>Loading…</p>
       ) : (
         <div className="grid sm:grid-cols-2 gap-3">
           {FORM_TYPES.map((t) => {
-            const items = (rows ?? []).filter((r) => r.formType === t);
-            const needs = items.filter((r) => r.reportVersion === 0).length;
+            const item = summary[t] ?? { count: 0, needsConverting: 0 };
             return (
               <Link to={`/manager/forms/${t}`} key={t} className="card-job">
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-black uppercase tracking-tight">📁 {FORM_LABELS[t]}</span>
-                  <span className="pill bg-stone-100 text-ink border-ink">{items.length}</span>
+                  <span className="pill bg-stone-100 text-ink border-ink">{item.count}</span>
                 </div>
                 <div className="text-sm text-rebar mt-1">
-                  {items.length === 0
+                  {item.count === 0
                     ? "No submissions"
-                    : needs > 0
-                    ? `${needs} need converting`
+                    : item.needsConverting > 0
+                    ? `${item.needsConverting} need converting`
                     : "All reports converted"}
                 </div>
               </Link>

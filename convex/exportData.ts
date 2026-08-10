@@ -1,12 +1,7 @@
 import { internalQuery } from "./_generated/server";
 import { requireManager } from "./helpers";
 import { FORM_LABELS, isSketchValue } from "./formDefs";
-
-function display(value: string | number | boolean | undefined): string {
-  if (value === undefined || value === null) return "";
-  if (typeof value === "boolean") return value ? "Yes" : "No";
-  return String(value);
-}
+import { displayFormValue } from "./formValues";
 
 /** Manager-only: every non-draft submission as a flat row for the Excel export. */
 export const getAllForExport = internalQuery({
@@ -20,7 +15,7 @@ export const getAllForExport = internalQuery({
       .map((s) => {
         const details = s.formFields
           .filter((f) => f.type !== "sketch" && !isSketchValue(s.formValues[f.id]))
-          .map((f) => `${f.label}: ${display(s.formValues[f.id])}`)
+          .map((f) => `${f.label}: ${displayFormValue(s.formValues[f.id])}`)
           .join(" | ");
         return {
           Form: FORM_LABELS[s.formType],

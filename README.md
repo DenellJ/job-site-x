@@ -9,9 +9,9 @@ Mobile-first PWA — Resscott's **Job-Site Digital Forms & Reporting Platform**.
 
 React 18 + Vite + TypeScript · Tailwind CSS · React Router · `react-signature-canvas` · `vite-plugin-pwa` · **[Convex](https://convex.dev)** (reactive database + server functions + file storage) with **[Convex Auth](https://labs.convex.dev/auth)** (email/password) · **pdf-lib** (server-side report PDFs) · **xlsx** (Excel export).
 
-## The five forms
+## The six forms
 
-`Site Visit`, `Job Inspections`, `Solar Water Heater`, `Job Ticket`, `New Job Task`. Their definitions live in **`convex/formDefs.ts`** (one source of truth, imported by both server and client). Site Visit and Solar Water Heater are digital replicas of the sample documents; the other three carry a reasonable draft field set to be confirmed during Resscott's form sign-off.
+`Site Visit — Lighting`, `Site Visit — Solar Systems`, `Site Visit — Solar Water Heaters`, `Inspection`, `Job Ticket`, and `New Job Task`. Their definitions live in **`convex/formDefs.ts`** (one source of truth, imported by both server and client). The four document-backed forms are reconciled with `sample forms/`; historical submissions retain their snapshotted definitions.
 
 ## Local development
 
@@ -29,8 +29,7 @@ npx convex dev
 #    dev deployment. When prompted for the web server URL, use http://127.0.0.1:5173.
 npx @convex-dev/auth
 
-# 3. One-time: seed the manager account manager@test.com / 1234.
-npx convex run users:seedDevManager '{}'
+# 3. One-time: open /setup and create the first manager.
 
 # 4. In a second terminal, start the frontend.
 npm run dev
@@ -75,13 +74,13 @@ Unchanged from the standard Convex + Netlify flow:
 npx @convex-dev/auth --prod
 ```
 
-In the Convex dashboard create a **production deploy key** (Settings → Deploy keys). New Netlify site → import the repo (`netlify.toml` sets build `npx convex deploy --cmd 'npm run build'`, publish `dist`, SPA redirect). Add Netlify env var **`CONVEX_DEPLOY_KEY`** = the prod deploy key. After first deploy, set `SITE_URL`:
+In the Convex dashboard create a **production deploy key** with deploy permission. Import the repository into Netlify; `netlify.toml` deploys Convex, explicitly injects `VITE_CONVEX_URL`, publishes `dist`, and preserves the SPA rewrite. Add **`CONVEX_DEPLOY_KEY`** for the production context. For deploy previews, configure a separate Convex preview deploy key in Netlify's Deploy Preview context. After the first production deploy, set `SITE_URL`:
 
 ```bash
 npx convex env set SITE_URL https://YOUR-SITE.netlify.app --prod
 ```
 
-After deploying, seed the production manager once: `npx convex run users:seedDevManager '{}' --prod` (or use `/setup`).
+After deploying, open `/setup` once to create the production manager. Verify that `CONVEX_SITE_URL`, `SITE_URL`, `JWT_PRIVATE_KEY`, and `JWKS` are set on the production Convex deployment and that the Netlify log injects the production URL as `VITE_CONVEX_URL`.
 
 ## Project layout
 
@@ -93,7 +92,7 @@ convex/
 ├── forms.ts             # server-side required-field validation
 ├── auth.ts · auth.config.ts · http.ts
 ├── helpers.ts           # requireProfile / requireApproved / requireManager / manager lookups
-├── users.ts             # me, register/approve/decline, per-form access, seedDevManager
+├── users.ts             # me, register/approve/decline, setup, per-form access
 ├── submissions.ts       # saveDraft, submit, listMine, listForManager, getDetail
 ├── approvals.ts         # decide (approve/reject + notify)
 ├── reportData.ts        # internal: report data + saveReport

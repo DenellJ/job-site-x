@@ -2,15 +2,9 @@ import { v } from "convex/values";
 import { internalMutation, internalQuery } from "./_generated/server";
 import { requireProfile } from "./helpers";
 import { FORM_LABELS, isSketchValue } from "./formDefs";
+import { displayFormValue } from "./formValues";
 
 /** Stringify a submitted field value for display in the report. */
-function display(value: string | number | boolean | undefined): string {
-  if (value === undefined || value === null) return "—";
-  if (typeof value === "boolean") return value ? "Yes" : "No";
-  const s = String(value);
-  return s.trim() === "" ? "—" : s;
-}
-
 /** Manager-only: gather everything the PDF action needs for one submission. */
 export const getForReport = internalQuery({
   args: { submissionId: v.id("formSubmissions") },
@@ -26,7 +20,8 @@ export const getForReport = internalQuery({
     const approvals = await ctx.db
       .query("approvals")
       .withIndex("by_submission", (q) => q.eq("submissionId", submissionId))
-      .collect();
+      .order("desc")
+      .take(50);
     const decided = approvals
       .filter((a) => a.decision === "approved")
       .sort((a, b) => b._creationTime - a._creationTime)[0];
@@ -61,7 +56,7 @@ export const getForReport = internalQuery({
         .filter((f) => f.type !== "sketch" && !isSketchValue(sub.formValues[f.id]))
         .map((f) => ({
           label: f.label,
-          value: display(sub.formValues[f.id]),
+          value: displayFormValue(sub.formValues[f.id]),
         })),
       managerName,
       managerSignatureId,

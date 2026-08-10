@@ -52,7 +52,7 @@ export const listProfiles = query({
   args: {},
   handler: async (ctx) => {
     await requireManager(ctx);
-    const profiles = await ctx.db.query("profiles").collect();
+    const profiles = await ctx.db.query("profiles").take(500);
     return profiles
       .map((p) => ({
         id: p.userId,
@@ -75,7 +75,8 @@ export const listPendingUsers = query({
     const pending = await ctx.db
       .query("profiles")
       .withIndex("by_status", (q) => q.eq("status", "pending"))
-      .collect();
+      .order("desc")
+      .take(200);
     return pending
       .map((p) => ({
         id: p.userId,

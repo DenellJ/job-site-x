@@ -29,11 +29,11 @@ export function AppShell({
   return (
     <div className="min-h-full flex flex-col bg-concrete">
       <header className="bg-white text-ink sticky top-0 z-40 border-b border-stone-200">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
+        <div className="max-w-3xl mx-auto px-3 py-3 grid grid-cols-[1fr_auto] items-center gap-2 sm:px-4 sm:flex sm:gap-3">
           <Link to={home} className="flex items-center shrink-0">
             <img src="/resscott-logo.png" alt="Resscott Limited" className="h-8 sm:h-10 w-auto" />
           </Link>
-          <nav className="flex items-center gap-1 ml-1">
+          <nav className="order-3 col-span-2 flex items-center gap-1 overflow-x-auto sm:order-none sm:col-span-1 sm:ml-1">
             {links.map((l) => {
               const active = pathname === l.to;
               return (
@@ -41,7 +41,7 @@ export function AppShell({
                   key={l.to}
                   to={l.to}
                   className={`text-xs font-semibold uppercase tracking-wide px-2.5 py-2 rounded-md ${
-                    active ? "bg-leaf-tint text-hi2" : "text-rebar hover:text-ink"
+                    active ? "bg-leaf-tint text-hi2 whitespace-nowrap" : "text-rebar hover:text-ink whitespace-nowrap"
                   }`}
                 >
                   {l.label}
@@ -53,7 +53,7 @@ export function AppShell({
             {profile.fullName || profile.username} · <span className="text-hi2 font-semibold">{roleLabel}</span>
           </span>
           <button
-            className="text-xs font-semibold uppercase tracking-wide border border-stone-300 px-3 py-2 rounded-md hover:border-hi hover:text-hi2"
+            className="justify-self-end text-xs font-semibold uppercase tracking-wide border border-stone-300 px-2.5 py-2 rounded-md hover:border-hi hover:text-hi2 sm:px-3"
             onClick={async () => {
               await onSignOut();
               navigate("/login");
@@ -64,7 +64,7 @@ export function AppShell({
         </div>
         <div className="h-stripe" />
       </header>
-      <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-5">{children}</main>
+      <main className="flex-1 max-w-3xl mx-auto w-full px-3 py-4 sm:px-4 sm:py-5">{children}</main>
     </div>
   );
 }

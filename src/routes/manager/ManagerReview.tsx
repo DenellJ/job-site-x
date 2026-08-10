@@ -4,14 +4,13 @@ import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { FormRenderer } from "../../components/FormRenderer";
+import { FormDetails } from "../../components/FormDetails";
 import { SignaturePad, type SignaturePadHandle } from "../../components/SignaturePad";
 import { MediaThumbs } from "../../components/MediaThumbs";
 import { SubmissionPill } from "../../components/StatusPill";
-import { getFormDef, isSketchValue } from "../../forms";
-import type { FormType, UploadedMedia } from "../../lib/types";
+import { sectionsForSnapshot } from "../../forms";
+import type { FormType, FormValue, UploadedMedia } from "../../lib/types";
 import { toMediaRefs } from "../../lib/types";
-
-type Value = string | number | boolean;
 
 function mediaArg(items: UploadedMedia[]) {
   return toMediaRefs(items).map((media) => ({
@@ -33,7 +32,7 @@ export default function ManagerReview() {
 
   const [comment, setComment] = useState("");
   const [editing, setEditing] = useState(false);
-  const [editValues, setEditValues] = useState<Record<string, Value>>({});
+  const [editValues, setEditValues] = useState<Record<string, FormValue>>({});
   const [editAttachments, setEditAttachments] = useState<UploadedMedia[]>([]);
   const [editReason, setEditReason] = useState("");
   const [busy, setBusy] = useState(false);
@@ -92,14 +91,14 @@ export default function ManagerReview() {
 
   function startEdit() {
     if (!detail) return;
-    setEditValues(detail.formValues as Record<string, Value>);
+    setEditValues(detail.formValues as Record<string, FormValue>);
     setEditAttachments(detail.attachments.map((media) => ({ ...media, storageId: media.storageId as string })));
     setEditReason("");
     setErr(null);
     setEditing(true);
   }
 
-  function setEditValue(fieldId: string, value: Value | undefined) {
+  function setEditValue(fieldId: string, value: FormValue | undefined) {
     setEditValues((previous) => {
       const next = { ...previous };
       if (value === undefined) delete next[fieldId];
@@ -159,7 +158,7 @@ export default function ManagerReview() {
   const docType = isWord ? "Word" : "PDF";
   const ext = isWord ? "docx" : "pdf";
   const canEdit = detail.status === "submitted" || detail.status === "approved";
-  const formDef = getFormDef(detail.formType as FormType);
+  const editSections = sectionsForSnapshot(detail.formType as FormType, detail.formFields);
   const fieldLabels = new Map(detail.formFields.map((field) => [field.id, field.label]));
 
   return (
@@ -186,7 +185,7 @@ export default function ManagerReview() {
       {editing ? (
         <div className="space-y-4">
           <FormRenderer
-            sections={formDef.sections}
+            sections={editSections}
             values={editValues}
             onChange={setEditValue}
             attachments={editAttachments}
@@ -221,41 +220,8 @@ export default function ManagerReview() {
                 </button>
               )}
             </div>
-            <ul className="space-y-2 text-sm">
-              {detail.formFields
-                .filter((field) => field.type !== "sketch" && !isSketchValue(detail.formValues[field.id]))
-                .map((field) => {
-                  const value = detail.formValues[field.id];
-                  const display =
-                    value === undefined || value === null
-                      ? "—"
-                      : typeof value === "boolean"
-                        ? value
-                          ? "Yes"
-                          : "No"
-                        : String(value);
-                  return (
-                    <li key={field.id} className="flex flex-col gap-1 border-b border-stone-100 pb-1 sm:flex-row sm:justify-between sm:gap-3">
-                      <span className="min-w-0 break-words font-bold uppercase tracking-wide text-xs text-rebar">{field.label}</span>
-                      <span className="min-w-0 break-words font-semibold sm:text-right">{display}</span>
-                    </li>
-                  );
-                })}
-            </ul>
+            <FormDetails fields={detail.formFields} values={detail.formValues} />
           </div>
-
-          {detail.formFields
-            .filter((field) => isSketchValue(detail.formValues[field.id]))
-            .map((field) => (
-              <div className="card" key={field.id}>
-                <h2 className="section-title">✏️ {field.label}</h2>
-                <img
-                  src={detail.formValues[field.id] as string}
-                  alt={field.label}
-                  className="w-full rounded-lg border border-stone-200 bg-white"
-                />
-              </div>
-            ))}
 
           {detail.attachments.length > 0 && (
             <div className="card">

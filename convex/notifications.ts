@@ -10,12 +10,11 @@ export const listMine = query({
     if (userId === null) return [];
     const notifications = await ctx.db
       .query("notifications")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .collect();
+      .withIndex("by_user_and_read", (q) => q.eq("userId", userId).eq("read", false))
+      .order("desc")
+      .take(50);
     return notifications
-      .filter((n) => !n.read)
-      .map((n) => ({ id: n._id, message: n.message, href: n.href, at: n._creationTime }))
-      .sort((a, b) => b.at - a.at);
+      .map((n) => ({ id: n._id, message: n.message, href: n.href, at: n._creationTime }));
   },
 });
 

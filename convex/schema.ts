@@ -87,5 +87,7 @@ export default defineSchema({
     message: v.string(),
     href: v.union(v.string(), v.null()),
     read: v.boolean(),
-  }).index("by_user", ["userId"]),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_and_read", ["userId", "read"]),
 });

@@ -34,14 +34,28 @@ export const formFieldValidator = v.object({
     v.literal("select"),
     v.literal("time"),
     v.literal("sketch"),
+    v.literal("load_table"),
   ),
   required: v.boolean(),
   // Only present for "select" fields.
   options: v.optional(v.array(v.string())),
 });
 
-/** A single submitted field value (scalar). */
-export const formValueValidator = v.union(v.string(), v.number(), v.boolean());
+export const loadScheduleRowValidator = v.object({
+  equipment: v.string(),
+  quantity: v.union(v.number(), v.null()),
+  totalWatts: v.union(v.number(), v.null()),
+  hoursPerDay: v.union(v.number(), v.null()),
+  wattHoursPerDay: v.union(v.number(), v.null()),
+});
+
+/** A submitted field value. Scalars remain valid for historical snapshots. */
+export const formValueValidator = v.union(
+  v.string(),
+  v.number(),
+  v.boolean(),
+  v.array(loadScheduleRowValidator),
+);
 
 /** A photo/video stored in Convex storage, with an optional caption. */
 export const mediaValidator = v.object({

@@ -5,14 +5,14 @@ import type { FunctionReturnType } from "convex/server";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { FormRenderer } from "../components/FormRenderer";
+import { FormDetails } from "../components/FormDetails";
 import { MediaGallery } from "../components/MediaGallery";
 import { MediaThumbs } from "../components/MediaThumbs";
 import { SubmissionPill } from "../components/StatusPill";
-import { getFormDef, isSketchValue } from "../forms";
-import type { FormType, UploadedMedia } from "../lib/types";
+import { getFormDef, sectionsForSnapshot } from "../forms";
+import type { FormType, FormValue, UploadedMedia } from "../lib/types";
 import { toMediaRefs } from "../lib/types";
-
-type Value = string | number | boolean;
+import { isEmptyFormValue } from "../../convex/formValues";
 
 function mediaArg(items: { storageId: string; kind: "photo" | "video"; caption: string | null; url?: string | null }[]) {
   return toMediaRefs(items as UploadedMedia[]).map((m) => ({
@@ -33,7 +33,7 @@ export default function FormFill() {
   const convertDoc = useAction(api.reports.convert);
 
   const [seeded, setSeeded] = useState(false);
-  const [formValues, setFormValues] = useState<Record<string, Value>>({});
+  const [formValues, setFormValues] = useState<Record<string, FormValue>>({});
   const [attachments, setAttachments] = useState<UploadedMedia[]>([]);
   const [finalMedia, setFinalMedia] = useState<UploadedMedia[]>([]);
   const [busy, setBusy] = useState(false);
@@ -43,7 +43,7 @@ export default function FormFill() {
 
   useEffect(() => {
     if (detail && !seeded) {
-      setFormValues((detail.formValues ?? {}) as Record<string, Value>);
+      setFormValues((detail.formValues ?? {}) as Record<string, FormValue>);
       setAttachments(detail.attachments.map((m) => ({ ...m, storageId: m.storageId as string })));
       setFinalMedia(detail.finalMedia.map((m) => ({ ...m, storageId: m.storageId as string })));
       setSeeded(true);
@@ -72,8 +72,9 @@ export default function FormFill() {
   const editable = detail.status !== "approved";
   const lastRejection = detail.history.find((h) => h.decision === "rejected")?.comment ?? null;
   const hasPhotoSection = def.sections.some((s) => s.media);
+  const editableSections = sectionsForSnapshot(detail.formType as FormType, detail.formFields);
 
-  function setValue(fieldId: string, value: Value | undefined) {
+  function setValue(fieldId: string, value: FormValue | undefined) {
     setFormValues((prev) => {
       const next = { ...prev };
       if (value === undefined) delete next[fieldId];
@@ -110,10 +111,22 @@ export default function FormFill() {
   }
 
   async function onSubmit() {
+    if (!detail) return;
     setBusy(true);
     setErr(null);
     setMsg(null);
     try {
+      const missing = detail.formFields.find((field) => field.required && isEmptyFormValue(formValues[field.id]));
+      if (missing) {
+        setErr(`Please complete required field: ${missing.label}.`);
+        setBusy(false);
+        return;
+      }
+      if (finalMedia.length === 0) {
+        setErr("Add final completion evidence before submitting.");
+        setBusy(false);
+        return;
+      }
       await persist();
       await submitMut({ submissionId });
       nav("/mine");
@@ -197,7 +210,7 @@ export default function FormFill() {
           )}
 
           <FormRenderer
-            sections={def.sections}
+            sections={editableSections}
             values={formValues}
             onChange={setValue}
             attachments={attachments}
@@ -288,34 +301,8 @@ function ReadOnlyView({ detail }: { detail: SubmissionDetail }) {
     <>
       <div className="card">
         <h2 className="section-title">{detail.formLabel} — Details</h2>
-        <ul className="space-y-2 text-sm">
-          {detail.formFields
-            .filter((f) => f.type !== "sketch" && !isSketchValue(detail.formValues[f.id]))
-            .map((f) => {
-            const v = detail.formValues[f.id];
-            const display =
-              v === undefined || v === null ? "—" : typeof v === "boolean" ? (v ? "Yes" : "No") : String(v);
-            return (
-              <li key={f.id} className="flex flex-col gap-1 border-b border-stone-100 pb-1 sm:flex-row sm:justify-between sm:gap-3">
-                <span className="min-w-0 break-words font-bold uppercase tracking-wide text-xs text-rebar">{f.label}</span>
-                <span className="min-w-0 break-words font-semibold sm:text-right">{display}</span>
-              </li>
-            );
-          })}
-        </ul>
+        <FormDetails fields={detail.formFields} values={detail.formValues} />
       </div>
-      {detail.formFields
-        .filter((f) => isSketchValue(detail.formValues[f.id]))
-        .map((f) => (
-          <div className="card" key={f.id}>
-            <h2 className="section-title">✏️ {f.label}</h2>
-            <img
-              src={detail.formValues[f.id] as string}
-              alt={f.label}
-              className="w-full rounded-lg border border-stone-200 bg-white"
-            />
-          </div>
-        ))}
       {detail.attachments.length > 0 && (
         <div className="card">
           <h2 className="section-title">📎 Attachments</h2>
