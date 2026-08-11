@@ -9,10 +9,10 @@ export default function Setup() {
   const setupFirstAdmin = useAction(api.users.setupFirstAdmin);
   const { signIn } = useAuthActions();
 
-  const [username, setUsername] = useState("");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -20,8 +20,13 @@ export default function Setup() {
     e.preventDefault();
     setErr(null);
     setBusy(true);
+    if (password !== confirmPassword) {
+      setErr("Passwords do not match.");
+      setBusy(false);
+      return;
+    }
     try {
-      await setupFirstAdmin({ email, password, username, fullName: fullName || null });
+      await setupFirstAdmin({ email, password, fullName });
       // Sign in with the same credentials — the app flips to the authed view,
       // and the `/setup` route then redirects home.
       await signIn("password", { email, password, flow: "signIn" });
@@ -63,12 +68,15 @@ export default function Setup() {
             Create the first admin account. From here you'll create managers and manage users.
           </p>
         </div>
-        <Field label="Username" value={username} onChange={setUsername} required />
-        <Field label="Full name" value={fullName} onChange={setFullName} />
+        <Field label="Full name" value={fullName} onChange={setFullName} required />
         <Field label="Email" type="email" value={email} onChange={setEmail} required />
         <div>
           <label className="label">Password</label>
           <PasswordInput value={password} onChange={setPassword} required minLength={8} autoComplete="new-password" />
+        </div>
+        <div>
+          <label className="label">Confirm password</label>
+          <PasswordInput value={confirmPassword} onChange={setConfirmPassword} required minLength={8} autoComplete="new-password" />
         </div>
         {err && <p className="text-err text-sm font-bold">{err}</p>}
         <button className="btn-accent w-full" disabled={busy}>

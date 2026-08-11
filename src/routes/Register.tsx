@@ -7,10 +7,10 @@ import { PasswordInput } from "../components/PasswordInput";
 export default function Register() {
   const registerRequest = useAction(api.users.registerRequest);
 
-  const [username, setUsername] = useState("");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [done, setDone] = useState(false);
@@ -19,8 +19,13 @@ export default function Register() {
     e.preventDefault();
     setBusy(true);
     setErr(null);
+    if (password !== confirmPassword) {
+      setErr("Passwords do not match.");
+      setBusy(false);
+      return;
+    }
     try {
-      await registerRequest({ email, password, username, fullName: fullName || null });
+      await registerRequest({ email, password, fullName });
       setDone(true);
     } catch (e: any) {
       setErr(e.message ?? "Registration failed. That email may already be in use.");
@@ -50,12 +55,8 @@ export default function Register() {
               Sign up as a contractor / user. A manager approves your account and assigns your forms.
             </p>
             <div>
-              <label className="label">Username</label>
-              <input className="input" required value={username} onChange={(e) => setUsername(e.target.value)} />
-            </div>
-            <div>
               <label className="label">Full name</label>
-              <input className="input" value={fullName} onChange={(e) => setFullName(e.target.value)} />
+              <input className="input" required value={fullName} onChange={(e) => setFullName(e.target.value)} autoComplete="name" />
             </div>
             <div>
               <label className="label">Email</label>
@@ -63,7 +64,11 @@ export default function Register() {
             </div>
             <div>
               <label className="label">Password</label>
-              <PasswordInput value={password} onChange={setPassword} required minLength={4} autoComplete="new-password" />
+              <PasswordInput value={password} onChange={setPassword} required minLength={8} autoComplete="new-password" />
+            </div>
+            <div>
+              <label className="label">Confirm password</label>
+              <PasswordInput value={confirmPassword} onChange={setConfirmPassword} required minLength={8} autoComplete="new-password" />
             </div>
             {err && <p className="text-err text-sm font-bold">{err}</p>}
             <button className="btn-accent w-full" disabled={busy}>

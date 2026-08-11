@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import type { FormFieldDef, FormSection, FormValue, LoadScheduleRow } from "../forms";
 import { MediaGallery } from "./MediaGallery";
 import { SketchPad } from "./SketchPad";
@@ -162,6 +163,9 @@ function Field({
     );
   }
 
+  if (field.type === "date") {
+    return <DateField label={label} value={typeof value === "string" ? value : ""} onChange={onChange} />;
+  }
   if (field.type === "textarea") {
     return (
       <div>
@@ -200,6 +204,46 @@ function Field({
         value={typeof value === "string" ? value : ""}
         onChange={(e) => onChange(e.target.value || undefined)}
       />
+    </div>
+  );
+}
+function DateField({
+  label,
+  value,
+  onChange,
+}: {
+  label: React.ReactNode;
+  value: string;
+  onChange: (value: FormValue | undefined) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function openCalendar() {
+    const input = inputRef.current;
+    if (!input) return;
+    input.focus();
+    try {
+      input.showPicker();
+    } catch {
+      input.click();
+    }
+  }
+
+  return (
+    <div>
+      {label}
+      <div className="relative">
+        <input
+          ref={inputRef}
+          className="input pr-12"
+          type="date"
+          value={value}
+          onChange={(e) => onChange(e.target.value || undefined)}
+        />
+        <button type="button" className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-rebar hover:text-ink" onClick={openCalendar} aria-label="Open calendar">
+          <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true"><path fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 3v3m10-3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z" /></svg>
+        </button>
+      </div>
     </div>
   );
 }

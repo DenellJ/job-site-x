@@ -15,6 +15,17 @@ import type { FormValue } from "./formDefs";
 import { isEmptyFormValue, MAX_LOAD_ROWS } from "./formValues";
 import type { Doc } from "./_generated/dataModel";
 
+function isValidIsoDate(value: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (match === null) return false;
+  const [, yearText, monthText, dayText] = match;
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+}
+
 /** Validate values against the definition snapshotted on the submission. */
 function validateFormValues(formFields: Doc<"formSubmissions">["formFields"], formValues: Record<string, FormValue>) {
   const fieldsById = new Map(formFields.map((field) => [field.id, field]));
@@ -30,13 +41,16 @@ function validateFormValues(formFields: Doc<"formSubmissions">["formFields"], fo
       throw new Error(`"${field.label}" must be Yes or No.`);
     }
     if (
-      (field.type === "text" || field.type === "textarea" || field.type === "time" || field.type === "select") &&
+      (field.type === "text" || field.type === "textarea" || field.type === "time" || field.type === "date" || field.type === "select") &&
       typeof value !== "string"
     ) {
       throw new Error(`"${field.label}" has an invalid value.`);
     }
     if (field.type === "select" && value !== "" && !field.options?.includes(value as string)) {
       throw new Error(`"${field.label}" has an invalid selection.`);
+    }
+    if (field.type === "date" && typeof value === "string" && value !== "" && !isValidIsoDate(value)) {
+      throw new Error(`"${field.label}" must be a valid date.`);
     }
     if (field.type === "sketch" && (typeof value !== "string" || !value.startsWith("data:image"))) {
       throw new Error(`"${field.label}" must be a sketch image.`);
@@ -133,7 +147,7 @@ export const saveDraft = mutation({
     return await ctx.db.insert("formSubmissions", {
       formType: args.formType,
       submittedBy: userId,
-      submitterUsername: profile.username,
+      submitterUsername: profile.fullName || profile.username,
       managerId,
       status: "draft",
       label,
@@ -226,14 +240,14 @@ export const editSubmission = mutation({
     await ctx.db.insert("formEdits", {
       submissionId: args.submissionId,
       editedBy: userId,
-      editedByUsername: profile.username,
+      editedByUsername: profile.fullName || profile.username,
       fieldIds,
       attachmentsChanged: mediaChanged,
       reason: args.reason?.trim() || null,
     });
     await ctx.db.insert("notifications", {
       userId: sub.submittedBy,
-      message: `${profile.username} corrected your ${FORM_LABELS[sub.formType]} submission.${args.reason?.trim() ? ` ${args.reason.trim()}` : ""}`,
+      message: `${profile.fullName || profile.username} corrected your ${FORM_LABELS[sub.formType]} submission.${args.reason?.trim() ? ` ${args.reason.trim()}` : ""}`,
       href: "/mine",
       read: false,
     });

@@ -17,7 +17,7 @@ export type FormType =
   | "job_ticket"
   | "new_job_task";
 
-export type FormFieldType = "text" | "textarea" | "number" | "yesno" | "select" | "time" | "sketch" | "load_table";
+export type FormFieldType = "text" | "textarea" | "number" | "yesno" | "select" | "time" | "date" | "sketch" | "load_table";
 
 export interface LoadScheduleRow {
   equipment: string;
@@ -244,8 +244,8 @@ export const FORM_DEFS: Record<FormType, FormDef> = {
           { id: "location", label: "Location", type: "text", required: false },
           { id: "serial_no", label: "Serial # / Local #", type: "text", required: false },
           { id: "rated_capacity", label: "Rated capacity", type: "text", required: false },
-          { id: "date_construction", label: "Date of construction", type: "text", required: false },
-          { id: "date_last_exam", label: "Date of last examination", type: "text", required: false },
+          { id: "date_construction", label: "Date of construction", type: "date", required: false },
+          { id: "date_last_exam", label: "Date of last examination", type: "date", required: false },
           { id: "time_in_service", label: "How long equipment was in service", type: "text", required: false },
         ],
       },
@@ -356,7 +356,7 @@ export const FORM_DEFS: Record<FormType, FormDef> = {
       {
         title: "Ticket",
         fields: [
-          { id: "ticket_date", label: "Date", type: "text", required: false },
+          { id: "ticket_date", label: "Date", type: "date", required: false },
           { id: "client_name", label: "Client", type: "text", required: true },
           { id: "site_location", label: "Site location", type: "textarea", required: false },
           {
@@ -412,7 +412,7 @@ export const FORM_DEFS: Record<FormType, FormDef> = {
             required: false,
             options: ["Low", "Medium", "High", "Urgent"],
           },
-          { id: "due_date", label: "Due date", type: "text", required: false },
+          { id: "due_date", label: "Due date", type: "date", required: false },
         ],
       },
       {
