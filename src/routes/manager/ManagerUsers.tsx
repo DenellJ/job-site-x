@@ -1,10 +1,19 @@
 import { useState } from "react";
 import { useAction, useMutation, useQuery } from "convex/react";
+import { anyApi } from "convex/server";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { FORM_LABELS, FORM_TYPES } from "../../forms";
 import type { FormType, UserRole } from "../../lib/types";
 import { PasswordInput } from "../../components/PasswordInput";
+
+const dynamicApi = anyApi;
+
+function DynamicFormAccessPicker({ value, onChange }: { value: string[]; onChange: (next: string[]) => void }) {
+  const forms = useQuery(dynamicApi.formTemplates.listForManagement) ?? [];
+  function toggle(formId: string) { onChange(value.includes(formId) ? value.filter((id) => id !== formId) : [...value, formId]); }
+  return <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{forms.filter((form: any) => form.status === "active" && form.publishedVersion).map((form: any) => <button type="button" key={form._id} onClick={() => toggle(form._id)} className={`pill cursor-pointer ${value.includes(form._id) ? "bg-ink text-concrete border-ink" : "bg-white text-ink border-stone-300"}`}>{value.includes(form._id) ? "✓ " : ""}{form.title}</button>)}</div>;
+}
 
 export default function ManagerUsers() {
   const me = useQuery(api.users.me);
@@ -200,10 +209,13 @@ function AccountRow({
   };
 }) {
   const updateUserForms = useMutation(api.users.updateUserForms);
+  const setAssignments = useMutation(dynamicApi.formTemplates.setAssignments);
+  const assigned = useQuery(dynamicApi.formTemplates.getAssignments, { userId: user.id as Id<"users"> }) as string[] | undefined;
   const resetContractorPassword = useAction(api.users.resetContractorPassword);
   const deleteContractor = useMutation(api.users.deleteContractor);
   const [editing, setEditing] = useState(false);
   const [forms, setForms] = useState<FormType[]>(user.allowedForms);
+  const [dynamicForms, setDynamicForms] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
   const [newPassword, setNewPassword] = useState("");
@@ -216,6 +228,7 @@ function AccountRow({
     setBusy(true);
     try {
       await updateUserForms({ userId: user.id as Id<"users">, allowedForms: forms });
+      await setAssignments({ userId: user.id as Id<"users">, formIds: dynamicForms as Id<"forms">[] });
       setEditing(false);
     } finally {
       setBusy(false);
@@ -301,6 +314,7 @@ function AccountRow({
           {editing ? (
             <>
               <FormAccessPicker value={forms} onChange={setForms} />
+              <DynamicFormAccessPicker value={dynamicForms} onChange={setDynamicForms} />
               <div className="flex gap-2">
                 <button className="pill cursor-pointer bg-stone-100 text-ink border-stone-300" onClick={() => setEditing(false)}>
                   Cancel
@@ -318,7 +332,7 @@ function AccountRow({
               ) : (
                 user.allowedForms.map((f) => <span key={f} className="pill bg-stone-100 text-ink border-stone-300">{FORM_LABELS[f]}</span>)
               )}
-              <button className="underline text-ink font-bold" onClick={() => { setForms(user.allowedForms); setEditing(true); }}>
+              <button className="underline text-ink font-bold" onClick={() => { setForms(user.allowedForms); setDynamicForms(assigned ?? []); setEditing(true); }}>
                 edit
               </button>
             </div>
@@ -364,12 +378,14 @@ function AccountRow({
 
 function CreateAccount({ isAdmin }: { isAdmin: boolean }) {
   const createUser = useAction(api.users.createUser);
+  const setAssignments = useMutation(dynamicApi.formTemplates.setAssignments);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [role, setRole] = useState<UserRole>("personnel");
   const [forms, setForms] = useState<FormType[]>([]);
+  const [dynamicForms, setDynamicForms] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
@@ -385,19 +401,21 @@ function CreateAccount({ isAdmin }: { isAdmin: boolean }) {
       return;
     }
     try {
-      await createUser({
+      const userId = await createUser({
         email,
         password,
         fullName,
         role,
         allowedForms: role === "manager" ? [] : forms,
       });
+      if (role === "personnel") await setAssignments({ userId, formIds: dynamicForms as Id<"forms">[] });
       setInfo(`Created ${role} "${fullName}". They can sign in with the email + password you set.`);
       setFullName("");
       setEmail("");
       setPassword("");
       setConfirmPassword("");
       setForms([]);
+      setDynamicForms([]);
     } catch (e: any) {
       setErr(e.message ?? "Failed to create user");
     } finally {
@@ -430,12 +448,14 @@ function CreateAccount({ isAdmin }: { isAdmin: boolean }) {
           <select className="input" value={role} onChange={(e) => setRole(e.target.value as UserRole)}>
             <option value="personnel">Contractor / User</option>
             {isAdmin && <option value="manager">Manager</option>}
+            {isAdmin && <option value="admin">Admin</option>}
           </select>
         </div>
         {role === "personnel" && (
           <div className="sm:col-span-2">
             <label className="label">Form access</label>
             <FormAccessPicker value={forms} onChange={setForms} />
+            <div className="mt-2"><DynamicFormAccessPicker value={dynamicForms} onChange={setDynamicForms} /></div>
           </div>
         )}
       </div>

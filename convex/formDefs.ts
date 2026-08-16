@@ -17,7 +17,10 @@ export type FormType =
   | "job_ticket"
   | "new_job_task";
 
-export type FormFieldType = "text" | "textarea" | "number" | "yesno" | "select" | "time" | "date" | "sketch" | "load_table";
+export type FormFieldType =
+  | "text" | "textarea" | "number" | "yesno" | "select" | "multi_select"
+  | "time" | "date" | "heading" | "instructions" | "signature" | "media"
+  | "file" | "sketch" | "table" | "load_table";
 
 export interface LoadScheduleRow {
   equipment: string;
@@ -27,7 +30,7 @@ export interface LoadScheduleRow {
   wattHoursPerDay: number | null;
 }
 
-export type FormValue = string | number | boolean | LoadScheduleRow[];
+export type FormValue = string | number | boolean | string[] | LoadScheduleRow[] | Array<Record<string, string>>;
 
 export interface FormFieldDef {
   id: string;
@@ -35,15 +38,34 @@ export interface FormFieldDef {
   type: FormFieldType;
   required: boolean;
   options?: string[];
+  helpText?: string;
+  columns?: string[];
 }
 
 export interface FormSection {
+  id?: string;
   title: string;
   note?: string;
   /** When true the section captures photos/videos (into the submission's
    *  attachments) instead of rendering form fields. */
   media?: boolean;
   fields: FormFieldDef[];
+}
+
+export interface EditableFormDefinition {
+  title: string;
+  sections: Array<FormSection & { id: string }>;
+}
+
+export function toEditableDefinition(def: FormDef): EditableFormDefinition {
+  return {
+    title: def.title,
+    sections: def.sections.map((section, sectionIndex) => ({
+      ...section,
+      id: section.id ?? `section_${sectionIndex + 1}`,
+      fields: section.fields.map((field) => ({ ...field })),
+    })),
+  };
 }
 
 export interface FormDef {

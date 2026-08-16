@@ -1,8 +1,9 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import type { FormFieldDef, FormSection, FormValue, LoadScheduleRow } from "../forms";
 import { MediaGallery } from "./MediaGallery";
 import { SketchPad } from "./SketchPad";
 import type { UploadedMedia } from "../lib/types";
+import { useUpload } from "../hooks/useUpload";
 
 /** Editable renderer for a form definition's sections + fields. */
 export function FormRenderer({
@@ -44,6 +45,8 @@ export function FormRenderer({
                 field={field}
                 value={values[field.id]}
                 onChange={(v) => onChange(field.id, v)}
+                attachments={attachments}
+                onAttachmentsChange={(next) => { onAttachmentsChange(next); onChange(field.id, next.length ? "attached" : undefined); }}
               />
             ))
           )}
@@ -57,17 +60,52 @@ function Field({
   field,
   value,
   onChange,
+  attachments,
+  onAttachmentsChange,
 }: {
   field: FormFieldDef;
   value: FormValue | undefined;
   onChange: (value: FormValue | undefined) => void;
+  attachments: UploadedMedia[];
+  onAttachmentsChange: (next: UploadedMedia[]) => void;
 }) {
+  const upload = useUpload();
+  const [uploading, setUploading] = useState(false);
   const label = (
     <label className="label">
       {field.label}
       {field.required && <span className="text-err"> *</span>}
     </label>
   );
+
+  if (field.type === "heading") return <h4 className="text-lg font-black uppercase tracking-tight">{field.label}</h4>;
+  if (field.type === "instructions") return <p className="text-sm text-rebar whitespace-pre-wrap">{field.label}</p>;
+
+  if (field.type === "media") {
+    return <div>{label}<MediaGallery value={attachments} onChange={onAttachmentsChange} accent /></div>;
+  }
+
+  if (field.type === "signature") {
+    return <div>{label}<SketchPad value={typeof value === "string" ? value : undefined} onChange={(dataUrl) => onChange(dataUrl)} /></div>;
+  }
+
+  if (field.type === "file") {
+    return <div>{label}<input className="input" type="file" disabled={uploading} onChange={async (event) => {
+      const file = event.target.files?.[0]; if (!file) return; setUploading(true);
+      try { const uploaded = await upload(file); onChange(uploaded.storageId); } finally { setUploading(false); }
+    }} />{typeof value === "string" && <div className="mt-1 text-xs text-ok font-bold">File attached <button type="button" className="text-err underline ml-2" onClick={() => onChange(undefined)}>remove</button></div>}</div>;
+  }
+
+  if (field.type === "multi_select") {
+    const selected = Array.isArray(value) ? value as string[] : [];
+    return <div>{label}<div className="grid sm:grid-cols-2 gap-2">{(field.options ?? []).map((option) => <label key={option} className="flex gap-2 items-center rounded border border-stone-200 p-2"><input type="checkbox" checked={selected.includes(option)} onChange={() => onChange(selected.includes(option) ? selected.filter((item) => item !== option) : [...selected, option])} />{option}</label>)}</div></div>;
+  }
+
+  if (field.type === "table") {
+    const columns = field.columns ?? [];
+    const rows = Array.isArray(value) ? value as Array<Record<string, string>> : [];
+    return <div className="space-y-2">{label}{rows.map((row, rowIndex) => <div key={rowIndex} className="rounded border border-stone-200 p-2 grid gap-2 sm:grid-cols-2">{columns.map((column) => <input key={column} className="input" aria-label={column} placeholder={column} value={row[column] ?? ""} onChange={(e) => onChange(rows.map((item, index) => index === rowIndex ? { ...item, [column]: e.target.value } : item))} />)}<button type="button" className="text-err text-sm font-bold" onClick={() => onChange(rows.filter((_, index) => index !== rowIndex))}>Remove row</button></div>)}<button type="button" className="btn-ghost w-full" onClick={() => onChange([...rows, Object.fromEntries(columns.map((column) => [column, ""]))])}>+ Add row</button></div>;
+  }
 
   if (field.type === "yesno") {
     return (
@@ -124,7 +162,9 @@ function Field({
   }
 
   if (field.type === "load_table") {
-    const rows = Array.isArray(value) ? value : [];
+    const rows: LoadScheduleRow[] = Array.isArray(value) && (value.length === 0 || (typeof value[0] === "object" && value[0] !== null && "equipment" in value[0]))
+      ? value as LoadScheduleRow[]
+      : [];
     const updateRow = (index: number, patch: Partial<LoadScheduleRow>) => {
       onChange(rows.map((row, rowIndex) => (rowIndex === index ? { ...row, ...patch } : row)));
     };

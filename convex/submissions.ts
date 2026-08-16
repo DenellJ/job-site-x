@@ -40,6 +40,12 @@ function validateFormValues(formFields: Doc<"formSubmissions">["formFields"], fo
     if (field.type === "yesno" && typeof value !== "boolean") {
       throw new Error(`"${field.label}" must be Yes or No.`);
     }
+    if (field.type === "multi_select" && (!Array.isArray(value) || value.some((item) => typeof item !== "string" || !field.options?.includes(item)))) {
+      throw new Error(`"${field.label}" has an invalid selection.`);
+    }
+    if (field.type === "table" && (!Array.isArray(value) || value.some((row) => typeof row !== "object" || row === null))) {
+      throw new Error(`"${field.label}" has an invalid table value.`);
+    }
     if (
       (field.type === "text" || field.type === "textarea" || field.type === "time" || field.type === "date" || field.type === "select") &&
       typeof value !== "string"
@@ -114,6 +120,7 @@ export const saveDraft = mutation({
   args: {
     submissionId: v.optional(v.id("formSubmissions")),
     formType: formTypeValidator,
+    formId: v.optional(v.id("forms")),
     startMedia: v.array(mediaValidator),
     startNotes: v.string(),
     formValues: v.record(v.string(), formValueValidator),
@@ -122,30 +129,39 @@ export const saveDraft = mutation({
   },
   handler: async (ctx, args) => {
     const { userId, profile } = await requireApproved(ctx);
-    if (!profile.allowedForms.includes(args.formType)) {
-      throw new Error("You do not have access to this form.");
-    }
-    const label = deriveLabel(args.formType, args.formValues);
-
     if (args.submissionId) {
       const existing = await ctx.db.get(args.submissionId);
       if (existing === null) throw new Error("Draft not found.");
       if (existing.submittedBy !== userId) throw new Error("Not your draft.");
       if (existing.status === "approved") throw new Error("Approved forms can no longer be edited.");
       await ctx.db.patch(args.submissionId, {
-        startMedia: args.startMedia,
-        startNotes: args.startNotes,
-        formValues: args.formValues,
-        attachments: args.attachments,
-        finalMedia: args.finalMedia,
-        label,
+        startMedia: args.startMedia, startNotes: args.startNotes, formValues: args.formValues,
+        attachments: args.attachments, finalMedia: args.finalMedia,
+        label: deriveLabel(existing.formType, args.formValues),
       });
       return args.submissionId;
     }
+    let dynamicForm = args.formId ? await ctx.db.get(args.formId) : null;
+    let dynamicVersion = dynamicForm?.publishedVersionId ? await ctx.db.get(dynamicForm.publishedVersionId) : null;
+    if (args.formId) {
+      if (!dynamicForm || dynamicForm.status !== "active" || !dynamicVersion) throw new Error("This form is not available.");
+      if (profile.role === "personnel") {
+        const assignment = await ctx.db.query("formAssignments")
+          .withIndex("by_user_and_form", (q) => q.eq("userId", userId).eq("formId", args.formId!)).unique();
+        if (!assignment) throw new Error("You do not have access to this form.");
+      }
+    } else if (!profile.allowedForms.includes(args.formType)) {
+      throw new Error("You do not have access to this form.");
+    }
+    const label = deriveLabel(args.formType, args.formValues);
 
     const managerId = await getPrimaryManagerId(ctx);
     return await ctx.db.insert("formSubmissions", {
       formType: args.formType,
+      formId: dynamicForm?._id,
+      formVersionId: dynamicVersion?._id,
+      formDefinition: dynamicVersion?.definition,
+      formTitle: dynamicForm?.title,
       submittedBy: userId,
       submitterUsername: profile.fullName || profile.username,
       managerId,
@@ -153,7 +169,7 @@ export const saveDraft = mutation({
       label,
       startMedia: args.startMedia,
       startNotes: args.startNotes,
-      formFields: flatFields(args.formType),
+      formFields: dynamicVersion ? dynamicVersion.definition.sections.flatMap((section) => section.fields) : flatFields(args.formType),
       formValues: args.formValues,
       attachments: args.attachments,
       finalMedia: args.finalMedia,
@@ -286,6 +302,7 @@ export const listMine = query({
       page: result.page.map((s) => ({
         id: s._id,
         formType: s.formType,
+        formTitle: s.formTitle,
         label: s.label,
         status: s.status,
         updatedAt: s._creationTime,
@@ -367,7 +384,9 @@ export const getDetail = query({
     return {
       id: sub._id,
       formType: sub.formType,
-      formLabel: FORM_LABELS[sub.formType],
+      formId: sub.formId,
+      formDefinition: sub.formDefinition,
+      formLabel: sub.formTitle ?? FORM_LABELS[sub.formType],
       status: sub.status,
       label: sub.label,
       submitterUsername: sub.submitterUsername,

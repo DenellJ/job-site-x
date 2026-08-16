@@ -1,5 +1,5 @@
 import { mutation } from "./_generated/server";
-import { requireProfile } from "./helpers";
+import { requireManager, requireProfile } from "./helpers";
 
 /**
  * Issue a short-lived upload URL. The client POSTs the file (photo or signature)
@@ -9,6 +9,14 @@ export const generateUploadUrl = mutation({
   args: {},
   handler: async (ctx) => {
     await requireProfile(ctx);
+    return await ctx.storage.generateUploadUrl();
+  },
+});
+
+export const generateFormImportUploadUrl = mutation({
+  args: {},
+  handler: async (ctx) => {
+    await requireManager(ctx);
     return await ctx.storage.generateUploadUrl();
   },
 });

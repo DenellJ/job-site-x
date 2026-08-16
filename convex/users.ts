@@ -286,28 +286,6 @@ export const seedAdmin = internalAction({
  * personnel profile and notifies the manager(s). The account cannot be used
  * until a manager approves it (status gate in the client + `requireApproved`).
  */
-export const registerRequest = action({
-  args: {
-    email: v.string(),
-    password: v.string(),
-    fullName: v.string(),
-  },
-  handler: async (ctx, args) => {
-    const fullName = requireFullName(args.fullName);
-    requireValidPassword(args.password);
-    const { user } = await createAccount(ctx, {
-      provider: "password",
-      account: { id: args.email, secret: args.password },
-      profile: { email: args.email },
-    });
-    await ctx.runMutation(internal.users.registerProfileAndNotify, {
-      userId: user._id,
-      username: fullName,
-      fullName,
-    });
-  },
-});
-
 /**
  * Manager-only: provision an account directly (already approved). Uses
  * `createAccount`, which does NOT touch the caller's session — the manager
@@ -348,6 +326,7 @@ export const createUser = action({
       status: "approved",
       allowedForms: args.role === "personnel" ? args.allowedForms : FORM_TYPES,
     });
+    return user._id;
   },
 });
 
@@ -520,6 +499,10 @@ export const deleteContractor = mutation({
       .withIndex("by_user", (q) => q.eq("userId", args.userId))
       .collect();
     for (const notification of notifications) await ctx.db.delete(notification._id);
+
+    const assignments = await ctx.db.query("formAssignments")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId)).take(500);
+    for (const assignment of assignments) await ctx.db.delete(assignment._id);
 
     await ctx.db.delete(profile._id);
     const user = await ctx.db.get(args.userId);

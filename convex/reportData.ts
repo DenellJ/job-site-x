@@ -43,8 +43,9 @@ export const getForReport = internalQuery({
 
     return {
       formType: sub.formType,
+      formDefinition: sub.formDefinition,
       label: sub.label,
-      formLabel: FORM_LABELS[sub.formType],
+      formLabel: sub.formTitle ?? FORM_LABELS[sub.formType],
       submitterUsername: sub.submitterUsername,
       submittedAt: sub._creationTime,
       status: sub.status,

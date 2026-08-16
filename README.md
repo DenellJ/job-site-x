@@ -2,7 +2,8 @@
 
 Mobile-first PWA — Resscott's **Job-Site Digital Forms & Reporting Platform**.
 
-- **Personnel** self-register; a manager approves the account and grants per-form access. They start a job by capturing mandatory **Section 1** start evidence (photo/video + notes), then complete one of the assigned **digital forms** (Section 2), attaching photos/videos and saving drafts. Before submitting they must add **final completion evidence**.
+- **Personnel** accounts are provisioned by a manager or admin and receive explicit per-form access. They capture mandatory start evidence, complete an assigned versioned form, and add final completion evidence.
+- **Managers and admins** create, edit, publish, assign, and archive forms. Gemini can turn an uploaded PDF or DOCX into a human-editable draft.
 - **Manager** sees submissions in **per-form-type folders**, reviews each one, approves/rejects with a signature, **converts** an approved submission into a customer-facing **Inspection Report PDF** (re-convert / re-download supported), and can **export the whole database to Excel**.
 
 ## Stack
@@ -29,7 +30,7 @@ npx convex dev
 #    dev deployment. When prompted for the web server URL, use http://127.0.0.1:5173.
 npx @convex-dev/auth
 
-# 3. One-time: open /setup and create the first manager.
+# 3. One-time: open /setup and create the first admin.
 
 # 4. In a second terminal, start the frontend.
 npm run dev
@@ -43,9 +44,9 @@ Open http://127.0.0.1:5173 and sign in as `manager@test.com` / `1234`.
 
 ## First-run + end-to-end test
 
-1. Sign in as the manager (`manager@test.com` / `1234`).
-2. In an incognito window, open `/register` and request an account (`emp1`). It lands as **pending**.
-3. Manager → **Users** → **Pending Requests** → grant a couple of forms → **Approve**. (`emp1` gets a realtime "approved" toast.)
+1. Sign in as an admin or manager.
+2. Open **Users** and create a personnel account with a temporary password. Managers create personnel only; admins can also create manager/admin accounts.
+3. Open **Forms**, create or edit a draft, publish it, then assign it to the personnel account from **Users**.
 4. As `emp1`: **Start a Job** — capture a start photo/video + notes (Section 1 gate), then pick a form.
 5. Fill the form → **Save Draft** → reopen from **My Forms** → confirm **Submit is locked** until you add **final completion evidence**, then submit. Manager gets a realtime toast.
 6. Manager → **Dashboard** → the form's folder shows the submission flagged **needs converting** → **Review**. Managers and admins can use **Edit Form** to correct a submitted or approved form; each correction is recorded and the original submitter is notified. An approved form remains approved, but any existing report is removed and must be regenerated.
@@ -55,7 +56,9 @@ Open http://127.0.0.1:5173 and sign in as `manager@test.com` / `1234`.
 
 ## Architecture notes
 
-- **Onboarding & access** (`convex/users.ts`): public `registerRequest` creates a *pending* personnel profile and notifies managers; `approveUser`/`declineUser` gate access and set per-form `allowedForms`. The app shell shows a "pending/declined" screen until approved. No account self-activates.
+- **Onboarding & access** (`convex/users.ts`): only authenticated managers/admins provision accounts. Dynamic access is stored in `formAssignments`; legacy `allowedForms` remains during migration.
+- **Versioned forms** (`convex/formTemplates.ts`): editable drafts publish to immutable versions. New forms clone Inspection, and submissions snapshot their published definition.
+- **Gemini import** (`convex/formImport.ts`): PDF/DOCX sources become validated drafts and are deleted after processing. Set `GEMINI_API_KEY` and optionally `GEMINI_MODEL` in Convex.
 - **One submission = Section 1 + Section 2 + final evidence** (`convex/schema.ts → formSubmissions`). The form field definitions are snapshotted onto each submission so historical records render faithfully even if a form changes.
 - **Gates** (`convex/submissions.ts → submit`): start media + notes, required Section-2 fields, and final completion media are all enforced server-side.
 - **Approval and corrections** (`convex/approvals.ts → decide`, `convex/submissions.ts → editSubmission`): staff can approve/reject pending work and correct submitted or approved field values/in-form attachments. Corrections are audited, notify the submitter, preserve approval status, and invalidate the generated report.

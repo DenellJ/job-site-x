@@ -44,17 +44,11 @@ export default function Login() {
         <button className="btn-accent w-full" disabled={busy}>
           {busy ? "Signing in…" : "Sign In"}
         </button>
-        <p className="text-sm text-rebar text-center">
-          New here?{" "}
-          <Link to="/register" className="text-ink font-black underline uppercase tracking-wide text-xs">
-            Create an account
-          </Link>
-        </p>
         {isSetupNeeded && (
           <p className="text-sm text-rebar text-center">
             First time here?{" "}
             <Link to="/setup" className="text-ink font-black underline uppercase tracking-wide text-xs">
-              Set up the first manager
+              Set up the first admin
             </Link>
           </p>
         )}

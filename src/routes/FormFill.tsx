@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAction, useMutation, useQuery } from "convex/react";
+import { anyApi } from "convex/server";
 import type { FunctionReturnType } from "convex/server";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
@@ -27,7 +28,7 @@ export default function FormFill() {
   const nav = useNavigate();
 
   const detail = useQuery(api.submissions.getDetail, { submissionId });
-  const saveDraft = useMutation(api.submissions.saveDraft);
+  const saveDraft = useMutation(anyApi.submissions.saveDraft);
   const submitMut = useMutation(api.submissions.submit);
   const deleteDraft = useMutation(api.submissions.deleteDraft);
   const convertDoc = useAction(api.reports.convert);
@@ -71,8 +72,9 @@ export default function FormFill() {
   const isRejected = detail.status === "rejected";
   const editable = detail.status !== "approved";
   const lastRejection = detail.history.find((h) => h.decision === "rejected")?.comment ?? null;
-  const hasPhotoSection = def.sections.some((s) => s.media);
-  const editableSections = sectionsForSnapshot(detail.formType as FormType, detail.formFields);
+  const dynamicDefinition = detail.formDefinition as import("../forms").EditableFormDefinition | undefined;
+  const hasPhotoSection = (dynamicDefinition?.sections ?? def.sections).some((s) => s.media || s.fields.some((field) => field.type === "media"));
+  const editableSections = dynamicDefinition?.sections ?? sectionsForSnapshot(detail.formType as FormType, detail.formFields);
 
   function setValue(fieldId: string, value: FormValue | undefined) {
     setFormValues((prev) => {
@@ -88,6 +90,7 @@ export default function FormFill() {
     await saveDraft({
       submissionId,
       formType: detail.formType as FormType,
+      formId: detail.formId,
       startMedia: mediaArg(detail.startMedia),
       startNotes: detail.startNotes,
       formValues,
@@ -155,7 +158,7 @@ export default function FormFill() {
     setErr(null);
     try {
       const { url } = await convertDoc({ submissionId });
-      const isWord = detail.formType.startsWith("site_visit");
+      const isWord = !detail.formDefinition && detail.formType.startsWith("site_visit");
       if (url) {
         const a = document.createElement("a");
         a.href = url;
@@ -196,7 +199,7 @@ export default function FormFill() {
         <button onClick={onDownload} className="btn-ghost w-full" disabled={downloading}>
           {downloading
             ? "Preparing…"
-            : `⬇ Download ${detail.formType.startsWith("site_visit") ? "Word" : "PDF"}`}
+            : `⬇ Download ${!detail.formDefinition && detail.formType.startsWith("site_visit") ? "Word" : "PDF"}`}
         </button>
       )}
 

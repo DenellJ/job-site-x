@@ -87,7 +87,9 @@ export const convert = action({
   handler: async (ctx, { submissionId }): Promise<{ reportVersion: number; url: string | null }> => {
     const data = await ctx.runQuery(internal.reportData.getForReport, { submissionId });
     const formType = data.formType as FormType;
-    const def = getFormDef(formType);
+    const def = data.formDefinition
+      ? { type: formType, title: data.formLabel, sections: data.formDefinition.sections }
+      : getFormDef(formType);
     const values = data.formValues as Record<string, FormValue>;
 
     const fetchBytes = async (storageId: string): Promise<Uint8Array | null> => {
@@ -109,7 +111,7 @@ export const convert = action({
 
     let storageId: Id<"_storage">;
 
-    if (isSiteVisit(formType)) {
+    if (isSiteVisit(formType) && !data.formDefinition) {
       // ---------------- Word (Servus letter) ----------------
       const photos: DocPhoto[] = [];
       let n = 1;
@@ -145,7 +147,7 @@ export const convert = action({
       storageId = await ctx.storage.store(new Blob([b64ToBytes(b64)], { type: DOCX_CT }));
     } else {
       // ---------------- PDF (pdf-lib) ----------------
-      const certificate = formType === "job_inspection";
+      const certificate = formType === "job_inspection" && !data.formDefinition;
       const pdf = await PDFDocument.create();
       const font = await pdf.embedFont(StandardFonts.Helvetica);
       const bold = await pdf.embedFont(StandardFonts.HelveticaBold);

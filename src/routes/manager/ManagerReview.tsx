@@ -132,7 +132,7 @@ export default function ManagerReview() {
     setErr(null);
     try {
       const { url } = await convert({ submissionId });
-      const isWord = detail.formType.startsWith("site_visit");
+      const isWord = !detail.formDefinition && detail.formType.startsWith("site_visit");
       if (url) download(url, `${detail.label || "report"}.${isWord ? "docx" : "pdf"}`);
     } catch (e: any) {
       setErr(e.message ?? "Conversion failed.");
@@ -154,11 +154,11 @@ export default function ManagerReview() {
   if (detail === undefined) return <p>Loading…</p>;
   if (detail === null) return <div className="card text-err font-bold">Submission not found.</div>;
   const pending = detail.status === "submitted";
-  const isWord = detail.formType.startsWith("site_visit");
+  const isWord = !detail.formDefinition && detail.formType.startsWith("site_visit");
   const docType = isWord ? "Word" : "PDF";
   const ext = isWord ? "docx" : "pdf";
   const canEdit = detail.status === "submitted" || detail.status === "approved";
-  const editSections = sectionsForSnapshot(detail.formType as FormType, detail.formFields);
+  const editSections = detail.formDefinition?.sections ?? sectionsForSnapshot(detail.formType as FormType, detail.formFields);
   const fieldLabels = new Map(detail.formFields.map((field) => [field.id, field.label]));
 
   return (

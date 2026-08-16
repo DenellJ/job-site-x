@@ -19,6 +19,7 @@ export function AppShell({
   const links = isStaff
     ? [
         { to: "/manager", label: "Dashboard" },
+        { to: "/manager/form-builder", label: "Forms" },
         { to: "/manager/users", label: "Users" },
       ]
     : [

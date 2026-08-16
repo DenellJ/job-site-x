@@ -3,9 +3,12 @@ import { v } from "convex/values";
 import { authTables } from "@convex-dev/auth/server";
 import {
   accountStatusValidator,
+  formDefinitionValidator,
   formFieldValidator,
+  formStatusValidator,
   formTypeValidator,
   formValueValidator,
+  formVersionStatusValidator,
   mediaValidator,
   roleValidator,
   submissionStatusValidator,
@@ -16,9 +19,8 @@ export default defineSchema({
   ...authTables,
 
   // App profile, one per auth user.
-  //  - `status`: personnel self-register as "pending"; the manager approves
-  //    (→ "approved" + `allowedForms`) or declines (→ "declined"). Managers are
-  //    always "approved" with access to all forms.
+  //  - `status`: retained for compatibility with historical pending/declined
+  //    accounts. Newly provisioned staff-created accounts are approved immediately.
   //  - `allowedForms`: the Section-2 forms this user may complete.
   // "Is the site set up?" = does any manager profile exist (`by_role`).
   profiles: defineTable({
@@ -33,10 +35,56 @@ export default defineSchema({
     .index("by_role", ["role"])
     .index("by_status", ["status"]),
 
+  forms: defineTable({
+    title: v.string(),
+    status: formStatusValidator,
+    legacyKey: v.optional(formTypeValidator),
+    publishedVersionId: v.optional(v.id("formVersions")),
+    draftVersionId: v.optional(v.id("formVersions")),
+    createdBy: v.id("users"),
+    updatedBy: v.id("users"),
+    updatedAt: v.number(),
+  })
+    .index("by_status", ["status"])
+    .index("by_legacyKey", ["legacyKey"]),
+
+  formVersions: defineTable({
+    formId: v.id("forms"),
+    version: v.number(),
+    status: formVersionStatusValidator,
+    definition: formDefinitionValidator,
+    revision: v.number(),
+    createdBy: v.id("users"),
+    updatedBy: v.id("users"),
+    publishedAt: v.optional(v.number()),
+  })
+    .index("by_form", ["formId"])
+    .index("by_form_and_status", ["formId", "status"]),
+
+  formAssignments: defineTable({
+    formId: v.id("forms"),
+    userId: v.id("users"),
+    assignedBy: v.id("users"),
+  })
+    .index("by_user", ["userId"])
+    .index("by_form", ["formId"])
+    .index("by_user_and_form", ["userId", "formId"]),
+
+  formAiMessages: defineTable({
+    formId: v.id("forms"),
+    userId: v.id("users"),
+    role: v.union(v.literal("user"), v.literal("assistant"), v.literal("error")),
+    text: v.string(),
+  }).index("by_form", ["formId"]),
+
   // One per job a technician works: Section 1 start evidence + a chosen Section 2
   // form + final completion evidence. Lifecycle: draft → submitted → approved|rejected.
   formSubmissions: defineTable({
     formType: formTypeValidator,
+    formId: v.optional(v.id("forms")),
+    formVersionId: v.optional(v.id("formVersions")),
+    formDefinition: v.optional(formDefinitionValidator),
+    formTitle: v.optional(v.string()),
     submittedBy: v.id("users"),
     submitterUsername: v.string(),
     managerId: v.id("users"), // primary manager (single tenant) — for the record

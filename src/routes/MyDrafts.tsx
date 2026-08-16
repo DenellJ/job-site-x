@@ -1,12 +1,13 @@
 import { Link } from "react-router-dom";
 import { useMutation, usePaginatedQuery } from "convex/react";
+import { anyApi } from "convex/server";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { SubmissionPill } from "../components/StatusPill";
 import { FORM_LABELS } from "../forms";
 
 export default function MyDrafts() {
-  const { results: rows, status, loadMore } = usePaginatedQuery(api.submissions.listMine, {}, { initialNumItems: 20 });
+  const { results: rows, status, loadMore } = usePaginatedQuery(anyApi.submissions.listMine, {}, { initialNumItems: 20 });
   const deleteDraft = useMutation(api.submissions.deleteDraft);
 
   async function handleDelete(id: string) {
@@ -32,11 +33,11 @@ export default function MyDrafts() {
         <div className="card text-center text-rebar">No forms yet. Start a job to begin.</div>
       ) : (
         <ul className="space-y-3">
-          {rows.map((r) => (
+          {rows.map((r: any) => (
             <li key={r.id} className="card-job flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
               <div className="flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-black uppercase tracking-tight">{FORM_LABELS[r.formType]}</span>
+                  <span className="font-black uppercase tracking-tight">{r.formTitle ?? FORM_LABELS[r.formType as keyof typeof FORM_LABELS]}</span>
                   <SubmissionPill status={r.status} />
                 </div>
                 <div className="text-sm text-rebar mt-0.5">

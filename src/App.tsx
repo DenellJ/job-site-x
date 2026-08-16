@@ -8,7 +8,8 @@ import { useRealtimeNotifications } from "./hooks/useRealtimeNotifications";
 
 import Setup from "./routes/Setup";
 import Login from "./routes/Login";
-import Register from "./routes/Register";
+import FormTemplates from "./routes/manager/FormTemplates";
+import FormTemplateEditor from "./routes/manager/FormTemplateEditor";
 import PendingApproval from "./routes/PendingApproval";
 import StartJob from "./routes/StartJob";
 import FormFill from "./routes/FormFill";
@@ -27,7 +28,6 @@ function PublicRoutes() {
     <Routes>
       <Route path="/setup" element={<Setup />} />
       <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
@@ -84,11 +84,13 @@ function AuthedApp() {
             <Route path="/manager/forms/:formType" element={<ManagerFolder />} />
             <Route path="/manager/submissions/:id" element={<ManagerReview />} />
             <Route path="/manager/users" element={<ManagerUsers />} />
+            <Route path="/manager/form-builder" element={<FormTemplates />} />
+            <Route path="/manager/form-builder/:id" element={<FormTemplateEditor />} />
           </>
         )}
         <Route path="/login" element={<Navigate to="/" replace />} />
         <Route path="/setup" element={<Navigate to="/" replace />} />
-        <Route path="/register" element={<Navigate to="/" replace />} />
+        <Route path="/register" element={<Navigate to="/login" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AppShell>

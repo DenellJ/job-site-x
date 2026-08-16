@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
+import { anyApi } from "convex/server";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { MediaGallery } from "../components/MediaGallery";
@@ -33,7 +34,8 @@ function loadDraft(): { startNotes: string; startMedia: UploadedMedia[] } {
 
 export default function StartJob({ profile }: { profile: Profile }) {
   const nav = useNavigate();
-  const saveDraft = useMutation(api.submissions.saveDraft);
+  const saveDraft = useMutation(anyApi.submissions.saveDraft);
+  const dynamicForms = useQuery(anyApi.formTemplates.listAvailable) as Array<{ id: Id<"forms">; title: string }> | undefined;
 
   const [startMedia, setStartMedia] = useState<UploadedMedia[]>(() => loadDraft().startMedia);
   const [startNotes, setStartNotes] = useState(() => loadDraft().startNotes);
@@ -79,6 +81,18 @@ export default function StartJob({ profile }: { profile: Profile }) {
     }
   }
 
+  async function startDynamicForm(formId: Id<"forms">) {
+    if (!section1Done) return;
+    setBusy(true); setErr(null);
+    try {
+      const submissionId = await saveDraft({ formType: "job_inspection", formId,
+        startMedia: toMediaRefs(startMedia).map((m) => ({ ...m, storageId: m.storageId as Id<"_storage"> })),
+        startNotes, formValues: {}, attachments: [], finalMedia: [],
+      });
+      localStorage.removeItem(DRAFT_KEY); nav(`/forms/${submissionId}`);
+    } catch (e: any) { setErr(e.message ?? "Could not start the form."); setBusy(false); }
+  }
+
   return (
     <div className="space-y-5">
       <div>
@@ -112,7 +126,11 @@ export default function StartJob({ profile }: { profile: Profile }) {
             Add a start photo/video and notes above to unlock the forms.
           </p>
         )}
-        {profile.allowedForms.length === 0 ? (
+        {dynamicForms !== undefined && dynamicForms.length > 0 ? (
+          <div className="grid sm:grid-cols-2 gap-3">
+            {dynamicForms.map((form) => <button key={form.id} type="button" disabled={!section1Done || busy} onClick={() => void startDynamicForm(form.id)} className="btn-ghost justify-start text-left">{form.title} →</button>)}
+          </div>
+        ) : profile.allowedForms.length === 0 ? (
           <p className="text-sm text-rebar">
             No forms have been assigned to your account yet. Ask your manager to grant form access.
           </p>
