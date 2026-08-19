@@ -243,11 +243,20 @@ export const setAssignments = mutation({
     const { userId: assignedBy } = await requireManager(ctx);
     const profile = await ctx.db.query("profiles").withIndex("by_user", (q) => q.eq("userId", args.userId)).unique();
     if (!profile || profile.role !== "personnel") throw new Error("Only personnel can receive form assignments.");
+    const formIds = [...new Set(args.formIds)];
+    if (formIds.length > 500) throw new Error("A user cannot be assigned more than 500 forms.");
+    const forms = await Promise.all(formIds.map((formId) => ctx.db.get(formId)));
+    if (forms.some((form) => !form || form.status !== "active" || !form.publishedVersionId)) {
+      throw new Error("Only active, published forms can be assigned.");
+    }
     const existing = await ctx.db.query("formAssignments").withIndex("by_user", (q) => q.eq("userId", args.userId)).take(500);
-    const wanted = new Set(args.formIds);
+    const wanted = new Set(formIds);
     for (const assignment of existing) if (!wanted.has(assignment.formId)) await ctx.db.delete(assignment._id);
     const current = new Set(existing.map((assignment) => assignment.formId));
-    for (const formId of args.formIds) if (!current.has(formId)) await ctx.db.insert("formAssignments", { formId, userId: args.userId, assignedBy });
+    for (const formId of formIds) if (!current.has(formId)) await ctx.db.insert("formAssignments", { formId, userId: args.userId, assignedBy });
+    await ctx.db.patch(profile._id, {
+      allowedForms: forms.flatMap((form) => form?.legacyKey ? [form.legacyKey] : []),
+    });
     return null;
   },
 });

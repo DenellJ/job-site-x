@@ -9,16 +9,32 @@ import { PasswordInput } from "../../components/PasswordInput";
 
 const dynamicApi = anyApi;
 
-function DynamicFormAccessPicker({ value, onChange }: { value: string[]; onChange: (next: string[]) => void }) {
-  const forms = useQuery(dynamicApi.formTemplates.listForManagement) ?? [];
-  function toggle(formId: string) { onChange(value.includes(formId) ? value.filter((id) => id !== formId) : [...value, formId]); }
-  return <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{forms.filter((form: any) => form.status === "active" && form.publishedVersion).map((form: any) => <button type="button" key={form._id} onClick={() => toggle(form._id)} className={`pill cursor-pointer ${value.includes(form._id) ? "bg-ink text-concrete border-ink" : "bg-white text-ink border-stone-300"}`}>{value.includes(form._id) ? "✓ " : ""}{form.title}</button>)}</div>;
+type ManagedForm = {
+  _id: Id<"forms">;
+  title: string;
+  status: "active" | "archived";
+  legacyKey?: FormType;
+  publishedVersion: number | null;
+};
+
+function DynamicFormAccessPicker({ forms, value, onChange, disabled = false }: {
+  forms: ManagedForm[];
+  value: string[];
+  onChange: (next: string[]) => void;
+  disabled?: boolean;
+}) {
+  function toggle(formId: string) {
+    onChange(value.includes(formId) ? value.filter((id) => id !== formId) : [...value, formId]);
+  }
+  return <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{forms.map((form) => <button type="button" key={form._id} disabled={disabled} onClick={() => toggle(form._id)} className={`pill cursor-pointer ${value.includes(form._id) ? "bg-ink text-concrete border-ink" : "bg-white text-ink border-stone-300"}`}>{value.includes(form._id) ? "✓ " : ""}{form.title}</button>)}</div>;
 }
 
 export default function ManagerUsers() {
   const me = useQuery(api.users.me);
   const pending = useQuery(api.users.listPendingUsers) ?? [];
   const users = useQuery(api.users.listProfiles) ?? [];
+  const managedForms = useQuery(dynamicApi.formTemplates.listForManagement) as ManagedForm[] | undefined;
+  const assignableForms = (managedForms ?? []).filter((form) => form.status === "active" && form.publishedVersion !== null);
   const isAdmin = me?.role === "admin";
 
   return (
@@ -43,13 +59,19 @@ export default function ManagerUsers() {
         )}
       </section>
 
-      <CreateAccount isAdmin={isAdmin} />
+      <CreateAccount isAdmin={isAdmin} forms={assignableForms} />
 
       <section className="card">
         <h2 className="section-title">Existing Accounts</h2>
         <ul className="divide-y divide-slate-100">
           {users.map((u) => (
-            <AccountRow key={u.id} user={u} />
+            <AccountRow
+              key={u.id}
+              user={u}
+              forms={assignableForms}
+              actorId={me?.id ?? null}
+              actorRole={me?.role ?? null}
+            />
           ))}
         </ul>
       </section>
@@ -198,6 +220,9 @@ function PendingRow({
 
 function AccountRow({
   user,
+  forms,
+  actorId,
+  actorRole,
 }: {
   user: {
     id: string;
@@ -207,29 +232,41 @@ function AccountRow({
     status: "pending" | "approved" | "declined";
     allowedForms: FormType[];
   };
+  forms: ManagedForm[];
+  actorId: string | null;
+  actorRole: UserRole | null;
 }) {
-  const updateUserForms = useMutation(api.users.updateUserForms);
   const setAssignments = useMutation(dynamicApi.formTemplates.setAssignments);
   const assigned = useQuery(dynamicApi.formTemplates.getAssignments, { userId: user.id as Id<"users"> }) as string[] | undefined;
   const resetContractorPassword = useAction(api.users.resetContractorPassword);
-  const deleteContractor = useMutation(api.users.deleteContractor);
+  const deleteUser = useMutation(api.users.deleteUser);
   const [editing, setEditing] = useState(false);
-  const [forms, setForms] = useState<FormType[]>(user.allowedForms);
   const [dynamicForms, setDynamicForms] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [accountBusy, setAccountBusy] = useState(false);
   const [accountErr, setAccountErr] = useState<string | null>(null);
   const [accountInfo, setAccountInfo] = useState<string | null>(null);
+  const legacyFormIds = forms
+    .filter((form) => form.legacyKey && user.allowedForms.includes(form.legacyKey))
+    .map((form) => form._id);
+  const effectiveAssignedIds = assigned && assigned.length > 0 ? assigned : legacyFormIds;
+  const assignedForms = forms.filter((form) => effectiveAssignedIds.includes(form._id));
+  const canDelete = actorId !== user.id && (
+    actorRole === "admin" || (actorRole === "manager" && user.role === "personnel")
+  );
 
   async function save() {
     setBusy(true);
+    setAccountErr(null);
     try {
-      await updateUserForms({ userId: user.id as Id<"users">, allowedForms: forms });
       await setAssignments({ userId: user.id as Id<"users">, formIds: dynamicForms as Id<"forms">[] });
       setEditing(false);
+    } catch (e: any) {
+      setAccountErr(e.message ?? "Could not save form access.");
     } finally {
       setBusy(false);
     }
@@ -261,17 +298,14 @@ function AccountRow({
     }
   }
 
-  async function removeContractor() {
-    const name = user.fullName || user.username;
-    if (!window.confirm(`Delete contractor "${name}"? Their login will be removed, but their work records will be kept.`)) {
-      return;
-    }
+  async function removeUser() {
     setAccountBusy(true);
     setAccountErr(null);
     try {
-      await deleteContractor({ userId: user.id as Id<"users"> });
+      await deleteUser({ userId: user.id as Id<"users"> });
     } catch (e: any) {
       setAccountErr(e.message ?? "Delete failed.");
+    } finally {
       setAccountBusy(false);
     }
   }
@@ -296,30 +330,17 @@ function AccountRow({
         <span className={`pill ${user.role === "personnel" ? "bg-hi text-ink border-ink" : "bg-ink text-hi border-ink"}`}>
           {user.role === "personnel" ? "contractor" : user.role}
         </span>
-        {user.role === "personnel" && (
-          <button
-            type="button"
-            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-red-200 text-err hover:bg-red-50"
-            onClick={removeContractor}
-            disabled={accountBusy}
-            aria-label={`Delete ${user.fullName || user.username}`}
-            title="Delete contractor"
-          >
-            <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true"><path fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 7h16m-10 4v6m4-6v6M9 7V4h6v3m-9 0 1 14h10l1-14" /></svg>
-          </button>
-        )}
       </div>
       {user.role === "personnel" && (
         <div className="pl-11 space-y-2">
           {editing ? (
             <>
-              <FormAccessPicker value={forms} onChange={setForms} />
-              <DynamicFormAccessPicker value={dynamicForms} onChange={setDynamicForms} />
+              <DynamicFormAccessPicker forms={forms} value={dynamicForms} onChange={setDynamicForms} disabled={busy || accountBusy} />
               <div className="flex gap-2">
-                <button className="pill cursor-pointer bg-stone-100 text-ink border-stone-300" onClick={() => setEditing(false)}>
+                <button type="button" className="pill cursor-pointer bg-stone-100 text-ink border-stone-300" onClick={() => setEditing(false)} disabled={busy}>
                   Cancel
                 </button>
-                <button className="pill cursor-pointer bg-ok text-white border-ok" onClick={save} disabled={busy}>
+                <button type="button" className="pill cursor-pointer bg-ok text-white border-ok" onClick={save} disabled={busy || accountBusy}>
                   {busy ? "…" : "Save forms"}
                 </button>
               </div>
@@ -327,12 +348,12 @@ function AccountRow({
           ) : (
             <div className="flex items-center gap-2 flex-wrap text-xs">
               <span className="text-rebar uppercase tracking-widest font-bold">Forms:</span>
-              {user.allowedForms.length === 0 ? (
+              {assignedForms.length === 0 ? (
                 <span className="text-rebar">none</span>
               ) : (
-                user.allowedForms.map((f) => <span key={f} className="pill bg-stone-100 text-ink border-stone-300">{FORM_LABELS[f]}</span>)
+                assignedForms.map((form) => <span key={form._id} className="pill bg-stone-100 text-ink border-stone-300">{form.title}</span>)
               )}
-              <button className="underline text-ink font-bold" onClick={() => { setForms(user.allowedForms); setDynamicForms(assigned ?? []); setEditing(true); }}>
+              <button type="button" className="underline text-ink font-bold" disabled={assigned === undefined || accountBusy} onClick={() => { setDynamicForms(effectiveAssignedIds); setEditing(true); setAccountErr(null); }}>
                 edit
               </button>
             </div>
@@ -341,8 +362,10 @@ function AccountRow({
             <button
               type="button"
               className="pill cursor-pointer bg-white text-ink border-stone-300"
+              disabled={accountBusy}
               onClick={() => {
                 setResetOpen((open) => !open);
+                setDeleteOpen(false);
                 setAccountErr(null);
                 setAccountInfo(null);
               }}
@@ -368,15 +391,35 @@ function AccountRow({
               </button>
             </form>
           )}
-          {accountErr && <p className="text-err text-sm font-bold">{accountErr}</p>}
-          {accountInfo && <p className="text-ok text-sm font-bold">{accountInfo}</p>}
         </div>
       )}
+      {canDelete && !deleteOpen && (
+        <div className="pl-11">
+          <button type="button" className="btn-err" disabled={accountBusy} onClick={() => { setDeleteOpen(true); setResetOpen(false); setAccountErr(null); setAccountInfo(null); }}>
+            Delete user
+          </button>
+        </div>
+      )}
+      {canDelete && deleteOpen && (
+        <div className="ml-11 rounded-md border-2 border-red-300 bg-red-50 p-3 space-y-3" role="alert">
+          <p className="text-sm font-bold text-red-900">
+            Permanently delete {user.fullName || user.username}'s login and form access? Their completed jobs, submissions, reports, and approvals will remain available.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className="btn-ghost" disabled={accountBusy} onClick={() => { setDeleteOpen(false); setAccountErr(null); }}>Cancel</button>
+            <button type="button" className="btn-err" disabled={accountBusy} onClick={() => void removeUser()}>
+              {accountBusy ? "Deleting…" : "Delete permanently"}
+            </button>
+          </div>
+        </div>
+      )}
+      {accountErr && <p className="pl-11 text-err text-sm font-bold">{accountErr}</p>}
+      {accountInfo && <p className="pl-11 text-ok text-sm font-bold">{accountInfo}</p>}
     </li>
   );
 }
 
-function CreateAccount({ isAdmin }: { isAdmin: boolean }) {
+function CreateAccount({ isAdmin, forms }: { isAdmin: boolean; forms: ManagedForm[] }) {
   const createUser = useAction(api.users.createUser);
   const setAssignments = useMutation(dynamicApi.formTemplates.setAssignments);
   const [fullName, setFullName] = useState("");
@@ -384,7 +427,6 @@ function CreateAccount({ isAdmin }: { isAdmin: boolean }) {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [role, setRole] = useState<UserRole>("personnel");
-  const [forms, setForms] = useState<FormType[]>([]);
   const [dynamicForms, setDynamicForms] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -401,12 +443,15 @@ function CreateAccount({ isAdmin }: { isAdmin: boolean }) {
       return;
     }
     try {
+      const allowedForms = forms
+        .filter((form) => form.legacyKey && dynamicForms.includes(form._id))
+        .flatMap((form) => form.legacyKey ? [form.legacyKey] : []);
       const userId = await createUser({
         email,
         password,
         fullName,
         role,
-        allowedForms: role === "manager" ? [] : forms,
+        allowedForms: role === "personnel" ? allowedForms : [],
       });
       if (role === "personnel") await setAssignments({ userId, formIds: dynamicForms as Id<"forms">[] });
       setInfo(`Created ${role} "${fullName}". They can sign in with the email + password you set.`);
@@ -414,7 +459,6 @@ function CreateAccount({ isAdmin }: { isAdmin: boolean }) {
       setEmail("");
       setPassword("");
       setConfirmPassword("");
-      setForms([]);
       setDynamicForms([]);
     } catch (e: any) {
       setErr(e.message ?? "Failed to create user");
@@ -454,8 +498,7 @@ function CreateAccount({ isAdmin }: { isAdmin: boolean }) {
         {role === "personnel" && (
           <div className="sm:col-span-2">
             <label className="label">Form access</label>
-            <FormAccessPicker value={forms} onChange={setForms} />
-            <div className="mt-2"><DynamicFormAccessPicker value={dynamicForms} onChange={setDynamicForms} /></div>
+            <DynamicFormAccessPicker forms={forms} value={dynamicForms} onChange={setDynamicForms} disabled={busy} />
           </div>
         )}
       </div>

@@ -15,6 +15,8 @@ import {
   mutation,
   query,
 } from "./_generated/server";
+import type { MutationCtx } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import { getManagerIds, requireManager } from "./helpers";
 import { accountStatusValidator, formTypeValidator, roleValidator } from "./validators";
@@ -451,61 +453,94 @@ export const updateUserForms = mutation({
     await ctx.db.patch(profile._id, { allowedForms: args.allowedForms });
   },
 });
-/** Staff-only: delete a contractor's access while preserving all work records. */
+
+const DELETE_BATCH_LIMIT = 500;
+
+function assertSafeDeleteCount(items: unknown[], label: string) {
+  if (items.length > DELETE_BATCH_LIMIT) {
+    throw new Error(`This account has too many ${label} to delete safely. Contact support.`);
+  }
+}
+
+async function deleteUserData(
+  ctx: MutationCtx,
+  targetUserId: Id<"users">,
+  contractorOnly: boolean,
+) {
+  const { userId: callerId, profile: callerProfile } = await requireManager(ctx);
+  if (callerId === targetUserId) throw new Error("You cannot delete your own account.");
+
+  const profile = await ctx.db
+    .query("profiles")
+    .withIndex("by_user", (q) => q.eq("userId", targetUserId))
+    .unique();
+  if (profile === null) throw new Error("Account not found.");
+  if (contractorOnly && profile.role !== "personnel") {
+    throw new Error("Only contractor accounts can be deleted with this control.");
+  }
+  if (callerProfile.role === "manager" && profile.role !== "personnel") {
+    throw new Error("Only admins can delete staff accounts.");
+  }
+  if (profile.role === "admin") {
+    const admins = await ctx.db.query("profiles")
+      .withIndex("by_role", (q) => q.eq("role", "admin")).take(2);
+    if (admins.length < 2) throw new Error("The final admin account cannot be deleted.");
+  }
+
+  const accounts = await ctx.db.query("authAccounts")
+    .withIndex("userIdAndProvider", (q) => q.eq("userId", targetUserId)).take(DELETE_BATCH_LIMIT + 1);
+  const sessions = await ctx.db.query("authSessions")
+    .withIndex("userId", (q) => q.eq("userId", targetUserId)).take(DELETE_BATCH_LIMIT + 1);
+  const notifications = await ctx.db.query("notifications")
+    .withIndex("by_user", (q) => q.eq("userId", targetUserId)).take(DELETE_BATCH_LIMIT + 1);
+  const assignments = await ctx.db.query("formAssignments")
+    .withIndex("by_user", (q) => q.eq("userId", targetUserId)).take(DELETE_BATCH_LIMIT + 1);
+  assertSafeDeleteCount(accounts, "login accounts");
+  assertSafeDeleteCount(sessions, "sessions");
+  assertSafeDeleteCount(notifications, "notifications");
+  assertSafeDeleteCount(assignments, "form assignments");
+
+  for (const account of accounts) {
+    const codes = await ctx.db.query("authVerificationCodes")
+      .withIndex("accountId", (q) => q.eq("accountId", account._id)).take(DELETE_BATCH_LIMIT + 1);
+    const rateLimits = await ctx.db.query("authRateLimits")
+      .withIndex("identifier", (q) => q.eq("identifier", account._id)).take(DELETE_BATCH_LIMIT + 1);
+    assertSafeDeleteCount(codes, "verification codes");
+    assertSafeDeleteCount(rateLimits, "rate-limit records");
+    for (const code of codes) await ctx.db.delete(code._id);
+    for (const rateLimit of rateLimits) await ctx.db.delete(rateLimit._id);
+    await ctx.db.delete(account._id);
+  }
+
+  for (const session of sessions) {
+    const refreshTokens = await ctx.db.query("authRefreshTokens")
+      .withIndex("sessionId", (q) => q.eq("sessionId", session._id)).take(DELETE_BATCH_LIMIT + 1);
+    const verifiers = await ctx.db.query("authVerifiers")
+      .withIndex("by_sessionId", (q) => q.eq("sessionId", session._id)).take(DELETE_BATCH_LIMIT + 1);
+    assertSafeDeleteCount(refreshTokens, "refresh tokens");
+    assertSafeDeleteCount(verifiers, "login verifiers");
+    for (const token of refreshTokens) await ctx.db.delete(token._id);
+    for (const verifier of verifiers) await ctx.db.delete(verifier._id);
+    await ctx.db.delete(session._id);
+  }
+
+  for (const notification of notifications) await ctx.db.delete(notification._id);
+  for (const assignment of assignments) await ctx.db.delete(assignment._id);
+  await ctx.db.delete(profile._id);
+  const user = await ctx.db.get(targetUserId);
+  if (user !== null) await ctx.db.delete(targetUserId);
+  // Submissions, approvals, reports, evidence, and audit edits deliberately remain.
+  return null;
+}
+
+/** Role-safe staff account deletion while preserving all historical work. */
+export const deleteUser = mutation({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => deleteUserData(ctx, userId, false),
+});
+
+/** Compatibility endpoint for cached clients that only delete contractors. */
 export const deleteContractor = mutation({
   args: { userId: v.id("users") },
-  handler: async (ctx, args) => {
-    await requireManager(ctx);
-    const profile = await ctx.db
-      .query("profiles")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
-      .unique();
-    if (profile === null) throw new Error("Account not found.");
-    if (profile.role !== "personnel") throw new Error("Only contractor accounts can be deleted.");
-
-    const accounts = await ctx.db
-      .query("authAccounts")
-      .withIndex("userIdAndProvider", (q) => q.eq("userId", args.userId))
-      .collect();
-    for (const account of accounts) {
-      const codes = await ctx.db
-        .query("authVerificationCodes")
-        .withIndex("accountId", (q) => q.eq("accountId", account._id))
-        .collect();
-      for (const code of codes) await ctx.db.delete(code._id);
-      await ctx.db.delete(account._id);
-    }
-
-    const sessions = await ctx.db
-      .query("authSessions")
-      .withIndex("userId", (q) => q.eq("userId", args.userId))
-      .collect();
-    for (const session of sessions) {
-      const refreshTokens = await ctx.db
-        .query("authRefreshTokens")
-        .withIndex("sessionId", (q) => q.eq("sessionId", session._id))
-        .collect();
-      for (const token of refreshTokens) await ctx.db.delete(token._id);
-      const verifiers = await ctx.db
-        .query("authVerifiers")
-        .filter((q) => q.eq(q.field("sessionId"), session._id))
-        .collect();
-      for (const verifier of verifiers) await ctx.db.delete(verifier._id);
-      await ctx.db.delete(session._id);
-    }
-
-    const notifications = await ctx.db
-      .query("notifications")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
-      .collect();
-    for (const notification of notifications) await ctx.db.delete(notification._id);
-
-    const assignments = await ctx.db.query("formAssignments")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId)).take(500);
-    for (const assignment of assignments) await ctx.db.delete(assignment._id);
-
-    await ctx.db.delete(profile._id);
-    const user = await ctx.db.get(args.userId);
-    if (user !== null) await ctx.db.delete(args.userId);
-  },
+  handler: async (ctx, { userId }) => deleteUserData(ctx, userId, true),
 });

@@ -17,6 +17,14 @@ import {
 export default defineSchema({
   // Convex Auth tables: `users`, `authAccounts`, `authSessions`, etc.
   ...authTables,
+  // Keep the auth library's signature index and add a session index so account
+  // deletion can clean up PKCE verifiers without scanning the whole table.
+  authVerifiers: defineTable({
+    sessionId: v.optional(v.id("authSessions")),
+    signature: v.optional(v.string()),
+  })
+    .index("signature", ["signature"])
+    .index("by_sessionId", ["sessionId"]),
 
   // App profile, one per auth user.
   //  - `status`: retained for compatibility with historical pending/declined
