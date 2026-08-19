@@ -10,9 +10,11 @@ export default function FormTemplates() {
   const initialize = useMutation(api.formTemplates.initializeDefaults);
   const create = useMutation(api.formTemplates.createFromInspection);
   const setArchived = useMutation(api.formTemplates.setArchived);
+  const deleteForm = useMutation(api.formTemplates.deleteForm);
   const navigate = useNavigate();
   const [title, setTitle] = useState("");
   const [busy, setBusy] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
@@ -26,6 +28,17 @@ export default function FormTemplates() {
       navigate(`/manager/form-builder/${formId}`);
     } catch (error: any) { setErr(error.message ?? "Could not create form."); }
     finally { setBusy(false); }
+  }
+
+  async function removeForm(form: { _id: string; title: string }) {
+    const confirmed = window.confirm(
+      `Permanently delete custom form "${form.title}"? Its drafts, versions, assignments, and Gemini history will be removed. Past submissions and reports will be kept. This cannot be undone.`,
+    );
+    if (!confirmed) return;
+    setDeletingId(form._id); setErr(null);
+    try { await deleteForm({ formId: form._id }); }
+    catch (error: any) { setErr(error.message ?? "Could not delete form."); }
+    finally { setDeletingId(null); }
   }
 
   return <div className="space-y-5">
@@ -52,11 +65,24 @@ export default function FormTemplates() {
           </div>
           <p className="text-xs text-rebar mt-1">{form.publishedVersion ? `Published v${form.publishedVersion}` : "Not published"}</p>
         </div>
-        <div className="flex gap-2">
-          <Link className="btn-primary" to={`/manager/form-builder/${form._id}`}>{form.draftRevision !== null ? "Continue editing" : "View / edit"}</Link>
-          <button className="btn-ghost" onClick={() => void setArchived({ formId: form._id, archived: form.status !== "archived" })}>
+        <div className="flex gap-2 flex-wrap">
+          <Link
+            className={`btn-primary ${deletingId === form._id ? "pointer-events-none opacity-50" : ""}`}
+            aria-disabled={deletingId === form._id}
+            to={`/manager/form-builder/${form._id}`}
+          >
+            {form.draftRevision !== null ? "Continue editing" : "View / edit"}
+          </Link>
+          <button
+            className="btn-ghost"
+            disabled={deletingId === form._id}
+            onClick={() => void setArchived({ formId: form._id, archived: form.status !== "archived" })}
+          >
             {form.status === "archived" ? "Restore" : "Archive"}
           </button>
+          {!form.legacyKey && <button className="btn-err" disabled={deletingId === form._id} onClick={() => void removeForm(form)}>
+            {deletingId === form._id ? "Deleting…" : "Delete"}
+          </button>}
         </div>
       </div>)}
     </div>}

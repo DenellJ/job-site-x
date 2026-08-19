@@ -118,6 +118,15 @@ export default function FormTemplateEditor() {
     </div>
     {error && <p className="text-err text-sm font-bold">{error}</p>}{message && <p className="text-ok text-sm font-bold">{message}</p>}
 
+    <div className="card space-y-3 border-l-4 border-l-hi2">
+      <h2 className="section-title">Gemini form agent</h2>
+      <p className="text-sm text-rebar">Attach a PDF or DOCX, or ask Gemini to revise this draft. The source file is deleted after processing.</p>
+      <input className="input" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+      <textarea className="input" rows={3} placeholder="Example: Make an editable form like the attached document and preserve its sections and tables." value={prompt} onChange={(e) => setPrompt(e.target.value)} />
+      <button className="btn-accent w-full" disabled={busy || !prompt.trim()} onClick={() => void askGemini()}>{busy ? "Gemini is working…" : "Ask Gemini"}</button>
+      {detail.messages.length > 0 && <div className="space-y-2 pt-2 border-t border-stone-200">{detail.messages.map((item: any) => <div key={item._id} className={`text-sm rounded p-2 ${item.role === "user" ? "bg-stone-100" : "bg-hi/30"}`}><strong>{item.role === "user" ? "You" : "Gemini"}:</strong> {item.text}</div>)}</div>}
+    </div>
+
     {preview ? <FormRenderer sections={definition.sections} values={{}} onChange={() => {}} attachments={[]} onAttachmentsChange={() => {}} /> : <>
       <div className="card space-y-3">
         <label className="label">Form title</label><input className="input" disabled={!locked} value={definition.title} onChange={(e) => change({ ...definition, title: e.target.value })} />
@@ -149,13 +158,6 @@ export default function FormTemplateEditor() {
       {locked && <button className="btn-ghost w-full" onClick={() => change({ ...definition, sections: [...definition.sections, { id: id("section"), title: "New section", fields: [] }] })}>+ Add section</button>}
     </>}
 
-    <div className="card space-y-3 border-l-4 border-l-hi2">
-      <h2 className="section-title">Gemini form agent</h2>
-      <p className="text-sm text-rebar">Attach a PDF or DOCX, or ask Gemini to revise this draft. The source file is deleted after processing.</p>
-      <input className="input" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-      <textarea className="input" rows={3} placeholder="Example: Make an editable form like the attached document and preserve its sections and tables." value={prompt} onChange={(e) => setPrompt(e.target.value)} />
-      <button className="btn-accent w-full" disabled={busy || !prompt.trim()} onClick={() => void askGemini()}>{busy ? "Gemini is working…" : "Ask Gemini"}</button>
-      {detail.messages.length > 0 && <div className="space-y-2 pt-2 border-t border-stone-200">{detail.messages.map((item: any) => <div key={item._id} className={`text-sm rounded p-2 ${item.role === "user" ? "bg-stone-100" : "bg-hi/30"}`}><strong>{item.role === "user" ? "You" : "Gemini"}:</strong> {item.text}</div>)}</div>}
-    </div>
+
   </div>;
 }

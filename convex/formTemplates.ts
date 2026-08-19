@@ -211,6 +211,32 @@ export const setArchived = mutation({
   },
 });
 
+export const deleteForm = mutation({
+  args: { formId: v.id("forms") },
+  handler: async (ctx, { formId }) => {
+    await requireManager(ctx);
+    const form = await ctx.db.get(formId);
+    if (!form) throw new Error("Form not found.");
+    if (form.legacyKey) throw new Error("Built-in forms cannot be deleted. Archive them instead.");
+
+    const [versions, assignments, messages] = await Promise.all([
+      ctx.db.query("formVersions").withIndex("by_form", (q) => q.eq("formId", formId)).take(501),
+      ctx.db.query("formAssignments").withIndex("by_form", (q) => q.eq("formId", formId)).take(501),
+      ctx.db.query("formAiMessages").withIndex("by_form", (q) => q.eq("formId", formId)).take(501),
+    ]);
+    if (versions.length > 500 || assignments.length > 500 || messages.length > 500) {
+      throw new Error("This form has too much related history to delete safely. Archive it instead.");
+    }
+
+    for (const version of versions) await ctx.db.delete(version._id);
+    for (const assignment of assignments) await ctx.db.delete(assignment._id);
+    for (const message of messages) await ctx.db.delete(message._id);
+    // Submissions keep their snapshotted definition, values, evidence, approvals, and reports.
+    await ctx.db.delete(formId);
+    return null;
+  },
+});
+
 export const setAssignments = mutation({
   args: { userId: v.id("users"), formIds: v.array(v.id("forms")) },
   handler: async (ctx, args) => {
