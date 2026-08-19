@@ -19,6 +19,12 @@ describe("versioned form definitions", () => {
     expect(isEmptyFormValue([])).toBe(true);
     expect(isEmptyFormValue([""])).toBe(true);
     expect(isEmptyFormValue(["Checked"])).toBe(false);
+    expect(isEmptyFormValue([{
+      equipment: "", quantity: 1, totalWatts: 300, hoursPerDay: 8, wattHoursPerDay: 2400,
+    }])).toBe(true);
+    expect(isEmptyFormValue([{
+      equipment: "Panel", quantity: null, totalWatts: null, hoursPerDay: null, wattHoursPerDay: null,
+    }])).toBe(false);
     expect(isEmptyFormValue([{ Item: "", Result: "" }])).toBe(true);
     expect(isEmptyFormValue([{ Item: "Panel", Result: "OK" }])).toBe(false);
   });

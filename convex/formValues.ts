@@ -12,6 +12,7 @@ export function isEmptyFormValue(value: FormValue | undefined): boolean {
   if (Array.isArray(value)) {
     if (value.length === 0) return true;
     if (typeof value[0] === "string") return (value as string[]).every((item) => !item.trim());
+    if (isLoadSchedule(value)) return value.every((row) => !row.equipment.trim());
     return (value as Array<Record<string, unknown>>).every((row) => Object.values(row).every((item) => String(item ?? "").trim() === ""));
   }
   return false;
