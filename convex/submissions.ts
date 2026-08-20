@@ -5,6 +5,7 @@ import type { QueryCtx } from "./_generated/server";
 import {
   getManagerIds,
   getPrimaryManagerId,
+  requireAdmin,
   requireApproved,
   requireManager,
   requireProfile,
@@ -13,7 +14,7 @@ import { formTypeValidator, formValueValidator, mediaValidator } from "./validat
 import { deriveLabel, flatFields, FORM_LABELS } from "./formDefs";
 import type { FormValue } from "./formDefs";
 import { isEmptyFormValue, MAX_LOAD_ROWS } from "./formValues";
-import type { Doc } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 
 function isValidIsoDate(value: string) {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
@@ -284,6 +285,48 @@ export const deleteDraft = mutation({
       await ctx.storage.delete(m.storageId);
     }
     await ctx.db.delete(submissionId);
+  },
+});
+
+/** Permanently delete a non-draft submission and all directly linked data. */
+export const deleteSubmission = mutation({
+  args: { submissionId: v.id("formSubmissions") },
+  handler: async (ctx, { submissionId }) => {
+    await requireAdmin(ctx);
+    const sub = await ctx.db.get(submissionId);
+    if (sub === null) throw new Error("Submission not found.");
+    if (sub.status === "draft") {
+      throw new Error("Drafts cannot be deleted from the dashboard.");
+    }
+
+    const [approvals, edits] = await Promise.all([
+      ctx.db
+        .query("approvals")
+        .withIndex("by_submission", (q) => q.eq("submissionId", submissionId))
+        .take(501),
+      ctx.db
+        .query("formEdits")
+        .withIndex("by_submission", (q) => q.eq("submissionId", submissionId))
+        .take(501),
+    ]);
+    if (approvals.length > 500 || edits.length > 500) {
+      throw new Error("This submission has too much history to delete safely.");
+    }
+
+    const storageIds = new Set<Id<"_storage">>();
+    for (const media of [...sub.startMedia, ...sub.attachments, ...sub.finalMedia]) {
+      storageIds.add(media.storageId);
+    }
+    if (sub.reportStorageId) storageIds.add(sub.reportStorageId);
+    for (const approval of approvals) {
+      if (approval.signatureId) storageIds.add(approval.signatureId);
+    }
+
+    for (const approval of approvals) await ctx.db.delete(approval._id);
+    for (const edit of edits) await ctx.db.delete(edit._id);
+    for (const storageId of storageIds) await ctx.storage.delete(storageId);
+    await ctx.db.delete(submissionId);
+    return null;
   },
 });
 

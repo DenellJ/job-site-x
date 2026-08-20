@@ -35,9 +35,9 @@ export async function requireManager(ctx: QueryCtx) {
   return result;
 }
 
-/** Like {@link requireProfile} but requires the admin role. */
+/** Like {@link requireApproved} but requires the admin role. */
 export async function requireAdmin(ctx: QueryCtx) {
-  const result = await requireProfile(ctx);
+  const result = await requireApproved(ctx);
   if (result.profile.role !== "admin") throw new Error("Admins only.");
   return result;
 }

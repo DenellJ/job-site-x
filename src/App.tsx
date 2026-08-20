@@ -81,7 +81,7 @@ function AuthedApp() {
         {isStaff && (
           <>
             <Route path="/manager" element={<ManagerDashboard />} />
-            <Route path="/manager/forms/:formType" element={<ManagerFolder />} />
+            <Route path="/manager/forms/:formType" element={<ManagerFolder isAdmin={profile.role === "admin"} />} />
             <Route path="/manager/submissions/:id" element={<ManagerReview />} />
             <Route path="/manager/users" element={<ManagerUsers />} />
             <Route path="/manager/form-builder" element={<FormTemplates />} />

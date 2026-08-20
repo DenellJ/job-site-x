@@ -1,18 +1,39 @@
+import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { usePaginatedQuery } from "convex/react";
+import { useMutation, usePaginatedQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
+import type { Id } from "../../../convex/_generated/dataModel";
 import { SubmissionPill } from "../../components/StatusPill";
 import { FORM_LABELS } from "../../forms";
 import type { FormType } from "../../lib/types";
 
-export default function ManagerFolder() {
+export default function ManagerFolder({ isAdmin }: { isAdmin: boolean }) {
   const { formType } = useParams<{ formType: string }>();
   const ft = formType as FormType;
+  const deleteSubmission = useMutation(api.submissions.deleteSubmission);
+  const [deletingId, setDeletingId] = useState<Id<"formSubmissions"> | null>(null);
+  const [err, setErr] = useState<string | null>(null);
   const { results: items, status, loadMore } = usePaginatedQuery(
     api.submissions.listForManager,
     { formType: ft },
     { initialNumItems: 20 },
   );
+
+  async function removeSubmission(item: { id: Id<"formSubmissions">; label: string }) {
+    const confirmed = window.confirm(
+      `Permanently delete "${item.label}"? Its form data, history, signatures, evidence, attachments, and generated report will be removed. This cannot be undone.`,
+    );
+    if (!confirmed) return;
+    setDeletingId(item.id);
+    setErr(null);
+    try {
+      await deleteSubmission({ submissionId: item.id });
+    } catch (error: unknown) {
+      setErr(error instanceof Error ? error.message : "Could not delete submission.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   return (
     <div className="space-y-5">
@@ -24,6 +45,8 @@ export default function ManagerFolder() {
           📁 {FORM_LABELS[ft] ?? "Folder"}
         </h1>
       </div>
+
+      {err && <p className="text-err text-sm font-bold">{err}</p>}
 
       {status === "LoadingFirstPage" ? (
         <p>Loading…</p>
@@ -49,9 +72,25 @@ export default function ManagerFolder() {
                   {r.submitterUsername} · {new Date(r.submittedAt).toLocaleString()}
                 </div>
               </div>
-              <Link to={`/manager/submissions/${r.id}`} className="btn-primary !min-h-[44px] !py-2 text-sm sm:shrink-0">
-                Review →
-              </Link>
+              <div className="flex gap-2 sm:shrink-0">
+                <Link
+                  to={`/manager/submissions/${r.id}`}
+                  className={`btn-primary !min-h-[44px] !py-2 text-sm ${deletingId === r.id ? "pointer-events-none opacity-50" : ""}`}
+                  aria-disabled={deletingId === r.id}
+                >
+                  Review →
+                </Link>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    className="btn-err !min-h-[44px] !py-2 text-sm"
+                    disabled={deletingId !== null}
+                    onClick={() => void removeSubmission(r)}
+                  >
+                    {deletingId === r.id ? "Deleting…" : "Delete"}
+                  </button>
+                )}
+              </div>
             </li>
           ))}
         </ul>
